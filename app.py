@@ -1,3 +1,4 @@
+from fastapi.responses import HTMLResponse
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
 import sqlite3
