@@ -1,11 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
-import os
-import requests
 
 app = FastAPI()
-
-MAX_TOKEN = os.getenv("MAX_TOKEN")
 
 
 class Booking(BaseModel):
@@ -22,36 +18,22 @@ def root():
     }
 
 
-@app.get("/updates")
-def updates():
-    headers = {
-        "Authorization": f"Bearer {MAX_TOKEN}"
-    }
-
-    r = requests.get(
-        "https://botapi.max.ru/updates",
-        headers=headers
-    )
-
-    return r.json()
-
-
 @app.post("/booking")
 def booking(data: Booking):
 
+    print("====== НОВАЯ ЗАЯВКА ======")
     print(data)
+    print("==========================")
 
-    return {
-        "success": True
-    }
-from fastapi import Request
+    return {"success": True}
+
 
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
 
-    print("========== MAX EVENT ==========")
+    print("========== СОБЫТИЕ MAX ==========")
     print(data)
-    print("===============================")
+    print("=================================")
 
     return {"ok": True}
