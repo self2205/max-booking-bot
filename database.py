@@ -18,14 +18,17 @@ def init_db():
         )
     """)
 
-    # Добавляем колонку status, если база уже существовала
+    # Если колонка уже существует — просто пропускаем
     try:
-        cursor.execute("ALTER TABLE bookings ADD COLUMN status TEXT DEFAULT '🟢 Новая'")
+        cursor.execute(
+            "ALTER TABLE bookings ADD COLUMN status TEXT DEFAULT '🟢 Новая'"
+        )
     except:
         pass
 
     conn.commit()
     conn.close()
+
 
 def save_booking(product, name, phone):
     conn = sqlite3.connect(DB_NAME)
@@ -41,13 +44,15 @@ def save_booking(product, name, phone):
 
     conn.commit()
     conn.close()
-    def change_status(booking_id):
+
+
+def change_status(booking_id):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
     cursor.execute(
         "SELECT status FROM bookings WHERE id=?",
-        (booking_id,)
+        (booking_id,),
     )
 
     row = cursor.fetchone()
@@ -67,12 +72,14 @@ def save_booking(product, name, phone):
 
     cursor.execute(
         "UPDATE bookings SET status=? WHERE id=?",
-        (new_status, booking_id)
+        (new_status, booking_id),
     )
 
     conn.commit()
     conn.close()
-    def get_bookings():
+
+
+def get_bookings():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
@@ -83,6 +90,7 @@ def save_booking(product, name, phone):
     """)
 
     rows = cursor.fetchall()
+
     conn.close()
 
     return rows
