@@ -25,7 +25,7 @@ TG_CHAT_ID = "441725473"
 def send_to_telegram(product, name, phone):
     try:
         text = f"""
-📦 НОВАЯ ЗАЯВКА
+📦 НОВОЕ БРОНИРОВАНИЕ!
 
 🛍 Товар: {product}
 👤 Имя: {name}
