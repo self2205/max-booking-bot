@@ -18,14 +18,6 @@ def init_db():
         )
     """)
 
-    # Если колонка уже существует — просто пропускаем
-    try:
-        cursor.execute(
-            "ALTER TABLE bookings ADD COLUMN status TEXT DEFAULT '🟢 Новая'"
-        )
-    except:
-        pass
-
     conn.commit()
     conn.close()
 
