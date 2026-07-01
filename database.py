@@ -1,13 +1,37 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+import sqlite3
 
-DATABASE_URL = "sqlite:///bookings.db"
+DB_NAME = "bookings.db"
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
 
-SessionLocal = sessionmaker(bind=engine)
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
 
-Base = declarative_base()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS bookings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product TEXT,
+            name TEXT,
+            phone TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+def save_booking(product, name, phone):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        INSERT INTO bookings(product, name, phone)
+        VALUES (?, ?, ?)
+        """,
+        (product, name, phone),
+    )
+
+    conn.commit()
+    conn.close()
