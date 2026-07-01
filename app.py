@@ -1,7 +1,11 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+import os
+import requests
 
 app = FastAPI()
+
+MAX_TOKEN = os.getenv("MAX_TOKEN")
 
 
 class Booking(BaseModel):
@@ -18,13 +22,24 @@ def root():
     }
 
 
+@app.get("/updates")
+def updates():
+    headers = {
+        "Authorization": f"Bearer {MAX_TOKEN}"
+    }
+
+    r = requests.get(
+        "https://botapi.max.ru/updates",
+        headers=headers
+    )
+
+    return r.json()
+
+
 @app.post("/booking")
 def booking(data: Booking):
-    print("====== НОВАЯ ЗАЯВКА ======")
-    print(f"Товар: {data.product}")
-    print(f"Имя: {data.name}")
-    print(f"Телефон: {data.phone}")
-    print("==========================")
+
+    print(data)
 
     return {
         "success": True
