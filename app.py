@@ -44,3 +44,14 @@ def booking(data: Booking):
     return {
         "success": True
     }
+from fastapi import Request
+
+@app.post("/webhook")
+async def webhook(request: Request):
+    data = await request.json()
+
+    print("========== MAX EVENT ==========")
+    print(data)
+    print("===============================")
+
+    return {"ok": True}
