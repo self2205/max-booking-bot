@@ -4,18 +4,48 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 import sqlite3
 import secrets
+import requests
 
 from database import init_db, save_booking
 
 app = FastAPI()
 
-# Создаем базу данных при запуске
+# ==========================
+# INIT DB
+# ==========================
 init_db()
 
 # ==========================
-# НАСТРОЙКИ АДМИНКИ
+# TELEGRAM
 # ==========================
+TG_TOKEN = "8977629291:AAFZLDW_YHDYj8ZB8KePSHQVBgyRaxbmh-Y"
+TG_CHAT_ID = "441725473"
 
+
+def send_to_telegram(product, name, phone):
+    try:
+        text = f"""
+📦 НОВАЯ ЗАЯВКА
+
+🛍 Товар: {product}
+👤 Имя: {name}
+📞 Телефон: {phone}
+"""
+
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+
+        requests.post(url, data={
+            "chat_id": TG_CHAT_ID,
+            "text": text
+        })
+
+    except Exception as e:
+        print("Telegram error:", e)
+
+
+# ==========================
+# ADMIN AUTH
+# ==========================
 security = HTTPBasic()
 
 ADMIN_LOGIN = "moysklad"
@@ -37,9 +67,8 @@ def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
 
 
 # ==========================
-# МОДЕЛЬ ЗАЯВКИ
+# MODEL
 # ==========================
-
 class Booking(BaseModel):
     product: str
     name: str
@@ -47,9 +76,8 @@ class Booking(BaseModel):
 
 
 # ==========================
-# ГЛАВНАЯ
+# ROOT
 # ==========================
-
 @app.get("/")
 def root():
     return {
@@ -59,9 +87,8 @@ def root():
 
 
 # ==========================
-# ПРИЕМ ЗАЯВКИ
+# BOOKING
 # ==========================
-
 @app.post("/booking")
 def booking(data: Booking):
 
@@ -70,6 +97,8 @@ def booking(data: Booking):
         data.name,
         data.phone
     )
+
+    send_to_telegram(data.product, data.name, data.phone)
 
     print("\n========== НОВАЯ ЗАЯВКА ==========")
     print(f"Товар: {data.product}")
@@ -81,9 +110,8 @@ def booking(data: Booking):
 
 
 # ==========================
-# WEBHOOK MAX
+# WEBHOOK
 # ==========================
-
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
@@ -96,9 +124,8 @@ async def webhook(request: Request):
 
 
 # ==========================
-# АДМИНКА
+# ADMIN PANEL
 # ==========================
-
 @app.get("/admin", response_class=HTMLResponse)
 def admin(auth: bool = Depends(check_auth)):
 
@@ -122,16 +149,13 @@ def admin(auth: bool = Depends(check_auth)):
 <title>Заявки</title>
 
 <style>
-
 body{
     font-family:Arial,sans-serif;
     background:#f4f4f4;
     padding:40px;
 }
 
-h2{
-    margin-bottom:20px;
-}
+h2{margin-bottom:20px;}
 
 table{
     width:100%;
@@ -153,7 +177,6 @@ td{
 tr:nth-child(even){
     background:#f8f8f8;
 }
-
 </style>
 
 </head>
