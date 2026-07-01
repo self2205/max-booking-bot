@@ -13,13 +13,19 @@ def init_db():
             product TEXT,
             name TEXT,
             phone TEXT,
+            status TEXT DEFAULT '🟢 Новая',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
+    # Добавляем колонку status, если база уже существовала
+    try:
+        cursor.execute("ALTER TABLE bookings ADD COLUMN status TEXT DEFAULT '🟢 Новая'")
+    except:
+        pass
+
     conn.commit()
     conn.close()
-
 
 def save_booking(product, name, phone):
     conn = sqlite3.connect(DB_NAME)
