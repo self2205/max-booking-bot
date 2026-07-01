@@ -1,12 +1,13 @@
-from fastapi.responses import HTMLResponse
 from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import sqlite3
+
 from database import init_db, save_booking
 
 app = FastAPI()
 
-# Создаем базу при запуске
+# Создаем базу данных при запуске
 init_db()
 
 
@@ -25,9 +26,8 @@ def root():
 
 
 @app.post("/booking")
-async def booking(data: Booking):
+def booking(data: Booking):
 
-    # Сохраняем в базу
     save_booking(
         data.product,
         data.name,
@@ -38,15 +38,23 @@ async def booking(data: Booking):
     print(f"Товар: {data.product}")
     print(f"Имя: {data.name}")
     print(f"Телефон: {data.phone}")
-    print("==================================\n")
+    print("=================================\n")
 
-    return {
-        "success": True,
-        "message": "Заявка сохранена"
-    }
+    return {"success": True}
 
 
-@app.get("/admin")
+@app.post("/webhook")
+async def webhook(request: Request):
+    data = await request.json()
+
+    print("========== СОБЫТИЕ MAX ==========")
+    print(data)
+    print("=================================")
+
+    return {"ok": True}
+
+
+@app.get("/admin", response_class=HTMLResponse)
 def admin():
 
     conn = sqlite3.connect("bookings.db")
@@ -59,79 +67,80 @@ def admin():
     """)
 
     rows = cursor.fetchall()
-
     conn.close()
 
     html = """
-    <html>
-    <head>
-        <title>Заявки</title>
-        <style>
-            body{
-                font-family:Arial;
-                padding:30px;
-                background:#f5f5f5;
-            }
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Заявки</title>
 
-            table{
-                width:100%;
-                border-collapse:collapse;
-                background:white;
-            }
+<style>
+body{
+    font-family:Arial,sans-serif;
+    background:#f4f4f4;
+    padding:40px;
+}
 
-            th,td{
-                padding:12px;
-                border:1px solid #ddd;
-            }
+h2{
+    margin-bottom:20px;
+}
 
-            th{
-                background:#222;
-                color:white;
-            }
-        </style>
-    </head>
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+}
 
-    <body>
+th{
+    background:#222;
+    color:white;
+    padding:12px;
+}
 
-    <h2>Заявки магазина</h2>
+td{
+    padding:12px;
+    border:1px solid #ddd;
+}
 
-    <table>
+tr:nth-child(even){
+    background:#f8f8f8;
+}
+</style>
 
-    <tr>
-    <th>ID</th>
-    <th>Товар</th>
-    <th>Имя</th>
-    <th>Телефон</th>
-    <th>Дата</th>
-    </tr>
-    """
+</head>
+<body>
+
+<h2>Заявки магазина</h2>
+
+<table>
+
+<tr>
+<th>ID</th>
+<th>Товар</th>
+<th>Имя</th>
+<th>Телефон</th>
+<th>Дата</th>
+</tr>
+"""
 
     for row in rows:
         html += f"""
-        <tr>
-            <td>{row[0]}</td>
-            <td>{row[1]}</td>
-            <td>{row[2]}</td>
-            <td>{row[3]}</td>
-            <td>{row[4]}</td>
-        </tr>
-        """
+<tr>
+<td>{row[0]}</td>
+<td>{row[1]}</td>
+<td>{row[2]}</td>
+<td>{row[3]}</td>
+<td>{row[4]}</td>
+</tr>
+"""
 
     html += """
-    </table>
+</table>
 
-    </body>
-    </html>
-    """
+</body>
+</html>
+"""
 
-    return html
-
-
-@app.post("/webhook")
-async def webhook(request: Request):
-
-    data = await request.json()
-
-    print(data)
-
-    return {"ok": True}
+    return HTMLResponse(content=html)
