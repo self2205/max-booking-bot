@@ -1,7 +1,9 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 import sqlite3
+import secrets
 
 from database import init_db, save_booking
 
@@ -10,12 +12,43 @@ app = FastAPI()
 # Создаем базу данных при запуске
 init_db()
 
+# ==========================
+# НАСТРОЙКИ АДМИНКИ
+# ==========================
+
+security = HTTPBasic()
+
+ADMIN_LOGIN = "moysklad"
+ADMIN_PASSWORD = "pass1973"
+
+
+def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
+    login_ok = secrets.compare_digest(credentials.username, ADMIN_LOGIN)
+    password_ok = secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
+
+    if not (login_ok and password_ok):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Неверный логин или пароль",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    return True
+
+
+# ==========================
+# МОДЕЛЬ ЗАЯВКИ
+# ==========================
 
 class Booking(BaseModel):
     product: str
     name: str
     phone: str
 
+
+# ==========================
+# ГЛАВНАЯ
+# ==========================
 
 @app.get("/")
 def root():
@@ -24,6 +57,10 @@ def root():
         "service": "MAX Booking Bot"
     }
 
+
+# ==========================
+# ПРИЕМ ЗАЯВКИ
+# ==========================
 
 @app.post("/booking")
 def booking(data: Booking):
@@ -43,6 +80,10 @@ def booking(data: Booking):
     return {"success": True}
 
 
+# ==========================
+# WEBHOOK MAX
+# ==========================
+
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
@@ -54,8 +95,12 @@ async def webhook(request: Request):
     return {"ok": True}
 
 
+# ==========================
+# АДМИНКА
+# ==========================
+
 @app.get("/admin", response_class=HTMLResponse)
-def admin():
+def admin(auth: bool = Depends(check_auth)):
 
     conn = sqlite3.connect("bookings.db")
     cursor = conn.cursor()
@@ -77,6 +122,7 @@ def admin():
 <title>Заявки</title>
 
 <style>
+
 body{
     font-family:Arial,sans-serif;
     background:#f4f4f4;
@@ -107,12 +153,14 @@ td{
 tr:nth-child(even){
     background:#f8f8f8;
 }
+
 </style>
 
 </head>
+
 <body>
 
-<h2>Заявки магазина</h2>
+<h2>📋 Заявки магазина</h2>
 
 <table>
 
