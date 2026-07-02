@@ -95,7 +95,11 @@ from max_service import get_max_message, extract_image
 @app.post("/webhook")
 async def webhook(request: Request):
 
-    data = await request.json()
+  data = await request.json()
+
+print("========== FULL DATA ==========")
+print(data)
+print("================================")
 
     message = data.get("message", {})
     body = message.get("body", {})
