@@ -16,7 +16,7 @@ app = FastAPI()
 init_db()
 
 # ==========================
-# TELEGRAM SETTINGS
+# TELEGRAM (если используешь)
 # ==========================
 TG_TOKEN = "8977629291:AAFZLDW_YHDYj8ZB8KePSHQVBgyRaxbmh-Y"
 TG_CHAT_ID = "441725473"
@@ -24,45 +24,54 @@ TG_CHAT_ID = "441725473"
 
 def send_to_telegram(product, name, phone):
     try:
-        text = f"""📦 НОВОЕ БРОНИРОВАНИЕ
+        text = f"""📦 НОВАЯ ЗАЯВКА
 
 🛍 Товар: {product}
 👤 Имя: {name}
 📞 Телефон: {phone}
 """
 
-        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-
-        requests.post(url, data={
-            "chat_id": TG_CHAT_ID,
-            "text": text
-        })
+        requests.post(
+            f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+            data={
+                "chat_id": TG_CHAT_ID,
+                "text": text
+            }
+        )
 
     except Exception as e:
         print("Telegram error:", e)
 
 
 # ==========================
-# SIMPLE MAX SEND (если нужно)
+# MAX SETTINGS
 # ==========================
 MAX_TOKEN = "f9LHodD0cOKUy_Tbz6q5rtrtWCdP8ftMcXbxymfoVF6qNAUQkqI9JcL9earTMlC8jPkdXWhctB1zilcJ0JTC"
 
 
-def send_message_max(chat_id, text):
+def send_message_max(user_id: int, text: str):
     try:
-        requests.post(
-            "https://platform-api2.max.ru/messages",
-            headers={
-                "Authorization": MAX_TOKEN,
-                "Content-Type": "application/json"
+        url = "https://platform-api2.max.ru/messages"
+
+        payload = {
+            "recipient": {
+                "user_id": user_id
             },
-            json={
-                "chat_id": chat_id,
-                "text": text
-            }
-        )
+            "text": text
+        }
+
+        headers = {
+            "Authorization": f"Bearer {MAX_TOKEN}",
+            "Content-Type": "application/json"
+        }
+
+        response = requests.post(url, json=payload, headers=headers)
+
+        print("MAX STATUS:", response.status_code)
+        print("MAX RESPONSE:", response.text)
+
     except Exception as e:
-        print("MAX error:", e)
+        print("MAX ERROR:", e)
 
 
 # ==========================
@@ -75,13 +84,13 @@ ADMIN_PASSWORD = "admin123"
 
 
 def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
-    login_ok = secrets.compare_digest(credentials.username, ADMIN_LOGIN)
-    password_ok = secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
-
-    if not (login_ok and password_ok):
+    if not (
+        secrets.compare_digest(credentials.username, ADMIN_LOGIN) and
+        secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный логин или пароль",
+            detail="Wrong login",
             headers={"WWW-Authenticate": "Basic"},
         )
     return True
@@ -101,11 +110,11 @@ class Booking(BaseModel):
 # ==========================
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "MAX Booking Bot"}
+    return {"status": "ok", "service": "MAX bot"}
 
 
 # ==========================
-# BOOKING (с сайта или конструктора)
+# BOOKING (с сайта)
 # ==========================
 @app.post("/booking")
 def booking(data: Booking):
@@ -113,31 +122,40 @@ def booking(data: Booking):
     save_booking(data.product, data.name, data.phone)
     send_to_telegram(data.product, data.name, data.phone)
 
-    print("\n========== НОВАЯ ЗАЯВКА ==========")
-    print(data)
-    print("=================================\n")
+    print("NEW BOOKING:", data)
 
     return {"success": True}
 
 
 # ==========================
-# WEBHOOK MAX
+# WEBHOOK MAX (ИСПРАВЛЕННЫЙ)
 # ==========================
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
 
-    print("========== СОБЫТИЕ MAX ==========")
+    print("========== MAX EVENT ==========")
     print(data)
-    print("=================================")
+    print("================================")
 
     message = data.get("message", {}).get("body", {}).get("text")
-    chat_id = data.get("message", {}).get("recipient", {}).get("chat_id")
+    user_id = data.get("message", {}).get("sender", {}).get("user_id")
 
+    if not user_id:
+        return {"ok": True}
+
+    # /start
     if message == "/start":
         send_message_max(
-            chat_id,
-            'Привет 👋\nЯ бот бронирования "Мой склад"\n\nНапиши товар для бронирования'
+            user_id,
+            "Привет 👋\nЯ бот бронирования магазина\n\nНапиши товар для брони"
+        )
+
+    # обычный текст
+    elif message:
+        send_message_max(
+            user_id,
+            f"Ты написал: {message}\n\nНапиши имя и телефон для брони"
         )
 
     return {"ok": True}
@@ -166,7 +184,7 @@ def admin(auth: bool = Depends(check_auth)):
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Заявки</title>
+<title>Admin</title>
 <style>
 body{font-family:Arial;background:#f4f4f4;padding:30px;}
 table{width:100%;background:white;border-collapse:collapse;}
