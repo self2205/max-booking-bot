@@ -3,4 +3,5 @@ uvicorn
 requests
 httpx
 certifi
+sqlalchemy
 psycopg2-binary
