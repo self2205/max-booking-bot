@@ -1,3 +1,4 @@
+from max_service import get_max_message, extract_image
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -88,6 +89,7 @@ from fastapi import Request
 from states import set_state, get_state, clear_state
 from max_service import send_message_max
 from booking_service import create_booking
+from max_service import get_max_message, extract_image
 
 
 @app.post("/webhook")
@@ -112,6 +114,20 @@ async def webhook(request: Request):
     state = get_state(user_id)
 
     # =========================
+    # 🖼 КАРТИНКА (ФИКС MAX)
+    # =========================
+    image_url = None
+
+    if mid:
+        try:
+            full_msg = get_max_message(mid)
+            image_url = extract_image(full_msg)
+        except Exception as e:
+            print("IMAGE ERROR:", e)
+
+    print("IMAGE_URL:", image_url)
+
+    # =========================
     # START
     # =========================
     if text == "/start":
@@ -124,7 +140,7 @@ async def webhook(request: Request):
         return {"ok": True}
 
     # =========================
-    # STEP 1 - PRODUCT
+    # PRODUCT
     # =========================
     if state and state["state"] == "WAIT_PRODUCT":
 
@@ -135,7 +151,7 @@ async def webhook(request: Request):
         return {"ok": True}
 
     # =========================
-    # STEP 2 - NAME
+    # NAME
     # =========================
     if state and state["state"] == "WAIT_NAME":
 
@@ -146,7 +162,7 @@ async def webhook(request: Request):
         return {"ok": True}
 
     # =========================
-    # STEP 3 - PHONE (FINAL)
+    # PHONE
     # =========================
     if state and state["state"] == "WAIT_PHONE":
 
@@ -155,7 +171,8 @@ async def webhook(request: Request):
         booking_id = create_booking(
             product=state["data"].get("product"),
             name=state["data"].get("name"),
-            phone=state["data"].get("phone")
+            phone=state["data"].get("phone"),
+            image_url=image_url
         )
 
         clear_state(user_id)
@@ -170,57 +187,6 @@ async def webhook(request: Request):
     # =========================
     # FALLBACK
     # =========================
-    send_message_max(data, "Напишите /start чтобы начать")
-
-    return {"ok": True}
-
-    # -------------------------
-    # PRODUCT
-    # -------------------------
-    if state and state["state"] == "WAIT_PRODUCT":
-
-        state["data"]["product"] = text
-        set_state(user_id, "WAIT_NAME", state["data"])
-
-        send_message_max(data, "✍️ Введите ваше имя")
-        return {"ok": True}
-
-    # -------------------------
-    # NAME
-    # -------------------------
-    if state and state["state"] == "WAIT_NAME":
-
-        state["data"]["name"] = text
-        set_state(user_id, "WAIT_PHONE", state["data"])
-
-        send_message_max(data, "📞 Введите телефон")
-        return {"ok": True}
-
-    # -------------------------
-    # PHONE
-    # -------------------------
-    if state and state["state"] == "WAIT_PHONE":
-
-        state["data"]["phone"] = text
-
-        booking_id = create_booking(
-            product=state["data"]["product"],
-            name=state["data"]["name"],
-            phone=state["data"]["phone"]
-        )
-
-        clear_state(user_id)
-
-        send_message_max(
-            data,
-            f"✅ Заявка создана!\n\nID: {booking_id}"
-        )
-
-        return {"ok": True}
-
-    # -------------------------
-    # fallback
-    # -------------------------
     send_message_max(data, "Напишите /start чтобы начать")
 
     return {"ok": True}
