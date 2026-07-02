@@ -4,11 +4,15 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 import sqlite3
 import secrets
-import httpx
+import requests
+import urllib3
 
 from database import init_db, save_booking
 
 app = FastAPI()
+
+# 🔴 ОТКЛЮЧАЕМ SSL WARNINGS (важно для MAX API)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ==========================
 # INIT DB
@@ -31,12 +35,13 @@ def send_to_telegram(product, name, phone):
 📞 Телефон: {phone}
 """
 
-        httpx.post(
+        requests.post(
             f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
             data={
                 "chat_id": TG_CHAT_ID,
                 "text": text
-            }
+            },
+            timeout=10
         )
 
     except Exception as e:
@@ -49,7 +54,7 @@ def send_to_telegram(product, name, phone):
 MAX_TOKEN = "f9LHodD0cOKUy_Tbz6q5rtrtWCdP8ftMcXbxymfoVF6qNAUQkqI9JcL9earTMlC8jPkdXWhctB1zilcJ0JTC"
 
 
-async def send_message_max(user_id: int, text: str):
+def send_message_max(user_id: int, text: str):
     try:
         url = "https://platform-api2.max.ru/messages"
 
@@ -61,11 +66,17 @@ async def send_message_max(user_id: int, text: str):
         }
 
         headers = {
-            "Authorization": MAX_TOKEN
+            "Authorization": MAX_TOKEN,
+            "Content-Type": "application/json"
         }
 
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.post(url, json=payload, headers=headers)
+        response = requests.post(
+            url,
+            json=payload,
+            headers=headers,
+            verify=False,   # 🔥 ВАЖНО: фикс SSL ошибки MAX
+            timeout=10
+        )
 
         print("MAX STATUS:", response.status_code)
         print("MAX RESPONSE:", response.text)
@@ -75,7 +86,7 @@ async def send_message_max(user_id: int, text: str):
 
 
 # ==========================
-# AUTH ADMIN
+# AUTH
 # ==========================
 security = HTTPBasic()
 
@@ -148,15 +159,15 @@ async def webhook(request: Request):
         return {"ok": True}
 
     if message == "/start":
-        await send_message_max(
+        send_message_max(
             user_id,
             "Привет 👋\nЯ бот бронирования магазина\nНапиши товар для бронирования"
         )
 
     elif message:
-        await send_message_max(
+        send_message_max(
             user_id,
-            f"Ты написал: {message}\n\nОтправь имя и телефон для заявки"
+            f"Ты написал: {message}\n\nТеперь отправь имя и телефон"
         )
 
     return {"ok": True}
