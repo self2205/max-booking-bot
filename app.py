@@ -55,15 +55,13 @@ def send_message_max(data, text: str):
         url = "https://platform-api2.max.ru/messages"
 
         message = data.get("message", {})
-        recipient = message.get("recipient")
+        recipient = message.get("recipient", {})
 
-        # 🔴 защита от кривого payload
-        if not isinstance(recipient, dict):
-            print("BAD recipient:", recipient)
-            return
+        chat_id = recipient.get("chat_id")
 
+        # 🔴 ВАЖНО: ТОЛЬКО chat_id, без recipient
         payload = {
-            "recipient": recipient,
+            "chat_id": chat_id,
             "text": text
         }
 
@@ -145,16 +143,18 @@ def booking(data: Booking):
 async def webhook(request: Request):
     data = await request.json()
 
-    print("========== MAX EVENT ==========")
-    print(data)
-    print("================================")
-
     message = data.get("message", {})
-
     text = message.get("body", {}).get("text")
-    recipient = message.get("recipient")
 
     print("DEBUG message:", text)
+
+    if text == "/start":
+        send_message_max(data, "Привет 👋")
+
+    elif text:
+        send_message_max(data, f"Ты написал: {text}")
+
+    return {"ok": True}
 
     # 🔴 защита от падений
     if not isinstance(recipient, dict):
