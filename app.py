@@ -120,6 +120,41 @@ async def webhook(request: Request):
     print(data)
     print("=================================")
 
+    from fastapi import FastAPI, Request
+import requests
+
+app = FastAPI()
+
+MAX_TOKEN = "ТВОЙ_ТОКЕН"
+
+def send_message(chat_id, text):
+    requests.post(
+        "https://platform-api2.max.ru/messages",
+        headers={
+            "Authorization": MAX_TOKEN,
+            "Content-Type": "application/json"
+        },
+        json={
+            "chat_id": chat_id,
+            "text": text
+        }
+    )
+
+@app.post("/webhook")
+async def webhook(request: Request):
+    data = await request.json()
+
+    print("СОБЫТИЕ MAX:", data)
+
+    message = data["message"]["body"]["text"]
+    chat_id = data["message"]["recipient"]["chat_id"]
+
+    if message == "/start":
+        send_message(chat_id, "Привет 👋 Я бот бронирования магазина "Мой склад"!
+        Через меня ты можешь забронировать товар")
+
+    return {"ok": True}
+    
     return {"ok": True}
 
 
