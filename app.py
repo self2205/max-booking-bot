@@ -11,7 +11,6 @@ from database import init_db, save_booking
 
 app = FastAPI()
 
-# отключаем SSL warning (MAX API)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ==========================
@@ -37,18 +36,16 @@ def send_to_telegram(product, name, phone):
 
         requests.post(
             f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
-            data={
-                "chat_id": TG_CHAT_ID,
-                "text": text
-            },
+            data={"chat_id": TG_CHAT_ID, "text": text},
             timeout=10
         )
+
     except Exception as e:
         print("Telegram error:", e)
 
 
 # ==========================
-# MAX
+# MAX SETTINGS
 # ==========================
 MAX_TOKEN = "f9LHodD0cOKUy_Tbz6q5rtrtWCdP8ftMcXbxymfoVF6qNAUQkqI9JcL9earTMlC8jPkdXWhctB1zilcJ0JTC"
 
@@ -57,7 +54,13 @@ def send_message_max(data, text: str):
     try:
         url = "https://platform-api2.max.ru/messages"
 
-        recipient = data.get("message", {}).get("recipient")
+        message = data.get("message", {})
+        recipient = message.get("recipient")
+
+        # 🔴 защита от кривого payload
+        if not isinstance(recipient, dict):
+            print("BAD recipient:", recipient)
+            return
 
         payload = {
             "recipient": recipient,
@@ -147,9 +150,16 @@ async def webhook(request: Request):
     print("================================")
 
     message = data.get("message", {})
+
     text = message.get("body", {}).get("text")
+    recipient = message.get("recipient")
 
     print("DEBUG message:", text)
+
+    # 🔴 защита от падений
+    if not isinstance(recipient, dict):
+        print("ERROR recipient invalid:", recipient)
+        return {"ok": True}
 
     if text == "/start":
         send_message_max(data, "Привет 👋\nЯ бот бронирования магазина")
