@@ -9,6 +9,7 @@ import urllib3
 
 from database import init_db, save_booking
 from telegram_service import send_to_telegram
+from max_service import send_message_max
 from config import *
 
 app = FastAPI()
