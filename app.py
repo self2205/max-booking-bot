@@ -21,7 +21,7 @@ init_db()
 # ==========================
 # TELEGRAM
 # ==========================
-TG_TOKEN = "PASTE_NEW_TELEGRAM_TOKEN"
+TG_TOKEN = "8977629291:AAFZLDW_YHDYj8ZB8KePSHQVBgyRaxbmh-Y"
 TG_CHAT_ID = "441725473"
 
 
@@ -50,7 +50,7 @@ def send_to_telegram(product, name, phone):
 # ==========================
 # MAX
 # ==========================
-MAX_TOKEN = "PASTE_NEW_MAX_TOKEN"
+MAX_TOKEN = "f9LHodD0cOIMCW44vdMwsn3v4uar9huyEAGCFLd-LqjWqsjrw3rhUNPvZKO9D6n-zLUG8OwfXqWPQNig3qgY"
 
 
 def send_message_max(data, text):
