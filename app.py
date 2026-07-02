@@ -11,7 +11,7 @@ from database import init_db, save_booking
 
 app = FastAPI()
 
-# отключаем SSL warning (для MAX API)
+# отключаем SSL warning (MAX API)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ==========================
@@ -43,13 +43,12 @@ def send_to_telegram(product, name, phone):
             },
             timeout=10
         )
-
     except Exception as e:
         print("Telegram error:", e)
 
 
 # ==========================
-# MAX SETTINGS
+# MAX
 # ==========================
 MAX_TOKEN = "f9LHodD0cOKUy_Tbz6q5rtrtWCdP8ftMcXbxymfoVF6qNAUQkqI9JcL9earTMlC8jPkdXWhctB1zilcJ0JTC"
 
@@ -58,17 +57,10 @@ def send_message_max(data, text: str):
     try:
         url = "https://platform-api2.max.ru/messages"
 
-        message = data.get("message", {})
-        recipient = message.get("recipient", {})
-
-        chat_id = recipient.get("chat_id")
-        chat_type = recipient.get("chat_type")
+        recipient = data.get("message", {}).get("recipient")
 
         payload = {
-            "recipient": {
-                "chat_id": chat_id,
-                "chat_type": chat_type
-            },
+            "recipient": recipient,
             "text": text
         }
 
@@ -93,7 +85,7 @@ def send_message_max(data, text: str):
 
 
 # ==========================
-# AUTH ADMIN
+# AUTH
 # ==========================
 security = HTTPBasic()
 
@@ -140,8 +132,6 @@ def booking(data: Booking):
     save_booking(data.product, data.name, data.phone)
     send_to_telegram(data.product, data.name, data.phone)
 
-    print("NEW BOOKING:", data)
-
     return {"success": True}
 
 
@@ -156,23 +146,16 @@ async def webhook(request: Request):
     print(data)
     print("================================")
 
-    # 🔥 ПРАВИЛЬНОЕ ПОЛУЧЕНИЕ ДАННЫХ
     message = data.get("message", {})
     text = message.get("body", {}).get("text")
-    user_id = message.get("sender", {}).get("user_id")
 
-    print("DEBUG user_id:", user_id)
     print("DEBUG message:", text)
 
-    if not user_id:
-        return {"ok": True}
-
-    # 🔘 ЛОГИКА БОТА
     if text == "/start":
-        send_message_max(user_id, "Привет 👋\nЯ бот бронирования магазина")
+        send_message_max(data, "Привет 👋\nЯ бот бронирования магазина")
 
     elif text:
-        send_message_max(user_id, f"Ты написал: {text}\n\nНапиши товар для бронирования")
+        send_message_max(data, f"Ты написал: {text}")
 
     return {"ok": True}
 
