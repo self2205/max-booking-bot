@@ -98,6 +98,18 @@ async def webhook(request: Request):
     message = data.get("message", {})
     body = message.get("body", {})
 
+    # =========================
+# 📸 ДОСТАЁМ КАРТИНКУ
+# =========================
+attachments = body.get("attachments", [])
+image_url = None
+
+for a in attachments:
+    if a.get("type") == "image":
+        image_url = a.get("payload", {}).get("url")
+
+print("IMAGE URL:", image_url)
+
     text = body.get("text", "")
     mid = body.get("mid")
     user_id = message.get("sender", {}).get("user_id")
@@ -133,13 +145,17 @@ async def webhook(request: Request):
     # =========================
     # PRODUCT
     # =========================
-    if state and state["state"] == "WAIT_PRODUCT":
+   if state and state["state"] == "WAIT_PRODUCT":
 
-        state["data"]["product"] = text
-        set_state(user_id, "WAIT_NAME", state["data"])
+    state["data"]["product"] = text
 
-        send_message_max(data, "✍️ Введите ваше имя")
-        return {"ok": True}
+    # 📸 СОХРАНЯЕМ КАРТИНКУ
+    state["data"]["image_url"] = image_url
+
+    set_state(user_id, "WAIT_NAME", state["data"])
+
+    send_message_max(data, "✍️ Введите ваше имя")
+    return {"ok": True}
 
     # =========================
     # NAME
@@ -159,12 +175,12 @@ async def webhook(request: Request):
 
         state["data"]["phone"] = text
 
-        booking_id = create_booking(
-            product=state["data"].get("product"),
-            name=state["data"].get("name"),
-            phone=state["data"].get("phone"),
-            image_url=image_url
-        )
+       booking_id = create_booking(
+    product=state["data"].get("product"),
+    name=state["data"].get("name"),
+    phone=state["data"].get("phone"),
+    image_url=state["data"].get("image_url")
+)
 
         clear_state(user_id)
 
