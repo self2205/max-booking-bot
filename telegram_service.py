@@ -1,58 +1,42 @@
 import requests
 from config import TG_TOKEN, TG_CHAT_ID
-from database import change_status, get_bookings
-
-ADMIN_TG_ID = 441725473  # твой Telegram ID
 
 
-# =========================
-# ОТПРАВКА ЗАЯВКИ (ТЕКСТ + КАРТИНКА)
-# =========================
 def send_to_telegram(product, name, phone, image_url=None):
-    try:
-        text = f"""📦 НОВАЯ ЗАЯВКА
+
+    text = f"""📦 НОВАЯ ЗАЯВКА
 
 🛍 Товар: {product}
 👤 Имя: {name}
 📞 Телефон: {phone}
 """
 
-        print("========== TELEGRAM ==========")
+    # =========================
+    # 📸 ЕСЛИ ЕСТЬ КАРТИНКА
+    # =========================
+    if image_url:
+        requests.post(
+            f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
+            data={
+                "chat_id": TG_CHAT_ID,
+                "photo": image_url,
+                "caption": text
+            },
+            timeout=10
+        )
+        return
 
-        # 📸 ЕСЛИ ЕСТЬ КАРТИНКА
-        if image_url:
-            url = f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto"
-
-            response = requests.post(
-                url,
-                data={
-                    "chat_id": TG_CHAT_ID,
-                    "photo": image_url,
-                    "caption": text
-                },
-                timeout=10
-            )
-
-        # 📝 ЕСЛИ КАРТИНКИ НЕТ
-        else:
-            url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-
-            response = requests.post(
-                url,
-                data={
-                    "chat_id": TG_CHAT_ID,
-                    "text": text
-                },
-                timeout=10
-            )
-
-        print("Status:", response.status_code)
-        print("Response:", response.text)
-        print("==============================")
-
-    except Exception as e:
-        print("Telegram error:", e)
-
+    # =========================
+    # ТЕКСТОВЫЙ ВАРИАНТ
+    # =========================
+    requests.post(
+        f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+        data={
+            "chat_id": TG_CHAT_ID,
+            "text": text
+        },
+        timeout=10
+    )
 
 # =========================
 # АДМИН КОМАНДЫ В TELEGRAM
