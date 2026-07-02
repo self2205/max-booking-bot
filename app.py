@@ -16,7 +16,7 @@ app = FastAPI()
 init_db()
 
 # ==========================
-# TELEGRAM
+# TELEGRAM SETTINGS
 # ==========================
 TG_TOKEN = "8977629291:AAFZLDW_YHDYj8ZB8KePSHQVBgyRaxbmh-Y"
 TG_CHAT_ID = "441725473"
@@ -24,8 +24,7 @@ TG_CHAT_ID = "441725473"
 
 def send_to_telegram(product, name, phone):
     try:
-        text = f"""
-📦 НОВОЕ БРОНИРОВАНИЕ!
+        text = f"""📦 НОВОЕ БРОНИРОВАНИЕ
 
 🛍 Товар: {product}
 👤 Имя: {name}
@@ -44,12 +43,35 @@ def send_to_telegram(product, name, phone):
 
 
 # ==========================
-# ADMIN AUTH
+# SIMPLE MAX SEND (если нужно)
+# ==========================
+MAX_TOKEN = "f9LHodD0cOKUy_Tbz6q5rtrtWCdP8ftMcXbxymfoVF6qNAUQkqI9JcL9earTMlC8jPkdXWhctB1zilcJ0JTC"
+
+
+def send_message_max(chat_id, text):
+    try:
+        requests.post(
+            "https://platform-api2.max.ru/messages",
+            headers={
+                "Authorization": MAX_TOKEN,
+                "Content-Type": "application/json"
+            },
+            json={
+                "chat_id": chat_id,
+                "text": text
+            }
+        )
+    except Exception as e:
+        print("MAX error:", e)
+
+
+# ==========================
+# AUTH ADMIN
 # ==========================
 security = HTTPBasic()
 
-ADMIN_LOGIN = "moysklad"
-ADMIN_PASSWORD = "pass1973"
+ADMIN_LOGIN = "admin"
+ADMIN_PASSWORD = "admin123"
 
 
 def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
@@ -62,7 +84,6 @@ def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
             detail="Неверный логин или пароль",
             headers={"WWW-Authenticate": "Basic"},
         )
-
     return True
 
 
@@ -80,37 +101,27 @@ class Booking(BaseModel):
 # ==========================
 @app.get("/")
 def root():
-    return {
-        "status": "ok",
-        "service": "MAX Booking Bot"
-    }
+    return {"status": "ok", "service": "MAX Booking Bot"}
 
 
 # ==========================
-# BOOKING
+# BOOKING (с сайта или конструктора)
 # ==========================
 @app.post("/booking")
 def booking(data: Booking):
 
-    save_booking(
-        data.product,
-        data.name,
-        data.phone
-    )
-
+    save_booking(data.product, data.name, data.phone)
     send_to_telegram(data.product, data.name, data.phone)
 
     print("\n========== НОВАЯ ЗАЯВКА ==========")
-    print(f"Товар: {data.product}")
-    print(f"Имя: {data.name}")
-    print(f"Телефон: {data.phone}")
+    print(data)
     print("=================================\n")
 
     return {"success": True}
 
 
 # ==========================
-# WEBHOOK
+# WEBHOOK MAX
 # ==========================
 @app.post("/webhook")
 async def webhook(request: Request):
@@ -120,41 +131,15 @@ async def webhook(request: Request):
     print(data)
     print("=================================")
 
-    from fastapi import FastAPI, Request
-import requests
-
-app = FastAPI()
-
-MAX_TOKEN = "ТВОЙ_ТОКЕН"
-
-def send_message(chat_id, text):
-    requests.post(
-        "https://platform-api2.max.ru/messages",
-        headers={
-            "Authorization": MAX_TOKEN,
-            "Content-Type": "application/json"
-        },
-        json={
-            "chat_id": chat_id,
-            "text": text
-        }
-    )
-
-@app.post("/webhook")
-async def webhook(request: Request):
-    data = await request.json()
-
-    print("СОБЫТИЕ MAX:", data)
-
-    message = data["message"]["body"]["text"]
-    chat_id = data["message"]["recipient"]["chat_id"]
+    message = data.get("message", {}).get("body", {}).get("text")
+    chat_id = data.get("message", {}).get("recipient", {}).get("chat_id")
 
     if message == "/start":
-        send_message(chat_id, "Привет 👋 Я бот бронирования магазина "Мой склад"!
-        Через меня ты можешь забронировать товар")
+        send_message_max(
+            chat_id,
+            'Привет 👋\nЯ бот бронирования "Мой склад"\n\nНапиши товар для бронирования'
+        )
 
-    return {"ok": True}
-    
     return {"ok": True}
 
 
@@ -178,50 +163,22 @@ def admin(auth: bool = Depends(check_auth)):
 
     html = """
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>Заявки</title>
-
 <style>
-body{
-    font-family:Arial,sans-serif;
-    background:#f4f4f4;
-    padding:40px;
-}
-
-h2{margin-bottom:20px;}
-
-table{
-    width:100%;
-    border-collapse:collapse;
-    background:white;
-}
-
-th{
-    background:#222;
-    color:white;
-    padding:12px;
-}
-
-td{
-    padding:12px;
-    border:1px solid #ddd;
-}
-
-tr:nth-child(even){
-    background:#f8f8f8;
-}
+body{font-family:Arial;background:#f4f4f4;padding:30px;}
+table{width:100%;background:white;border-collapse:collapse;}
+th{background:#222;color:white;padding:10px;}
+td{padding:10px;border:1px solid #ddd;}
 </style>
-
 </head>
-
 <body>
 
-<h2>📋 Заявки магазина</h2>
+<h2>📋 Заявки</h2>
 
 <table>
-
 <tr>
 <th>ID</th>
 <th>Товар</th>
@@ -231,22 +188,17 @@ tr:nth-child(even){
 </tr>
 """
 
-    for row in rows:
+    for r in rows:
         html += f"""
 <tr>
-<td>{row[0]}</td>
-<td>{row[1]}</td>
-<td>{row[2]}</td>
-<td>{row[3]}</td>
-<td>{row[4]}</td>
+<td>{r[0]}</td>
+<td>{r[1]}</td>
+<td>{r[2]}</td>
+<td>{r[3]}</td>
+<td>{r[4]}</td>
 </tr>
 """
 
-    html += """
-</table>
-
-</body>
-</html>
-"""
+    html += "</table></body></html>"
 
     return HTMLResponse(content=html)
