@@ -16,7 +16,7 @@ app = FastAPI()
 init_db()
 
 # ==========================
-# TELEGRAM (если используешь)
+# TELEGRAM (опционально)
 # ==========================
 TG_TOKEN = "8977629291:AAFZLDW_YHDYj8ZB8KePSHQVBgyRaxbmh-Y"
 TG_CHAT_ID = "441725473"
@@ -33,12 +33,8 @@ def send_to_telegram(product, name, phone):
 
         requests.post(
             f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
-            data={
-                "chat_id": TG_CHAT_ID,
-                "text": text
-            }
+            data={"chat_id": TG_CHAT_ID, "text": text}
         )
-
     except Exception as e:
         print("Telegram error:", e)
 
@@ -65,7 +61,12 @@ def send_message_max(user_id: int, text: str):
             "Content-Type": "application/json"
         }
 
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(
+            url,
+            json=payload,
+            headers=headers,
+            verify=False  # 🔥 ВАЖНО: фикс SSL ошибки
+        )
 
         print("MAX STATUS:", response.status_code)
         print("MAX RESPONSE:", response.text)
@@ -75,7 +76,7 @@ def send_message_max(user_id: int, text: str):
 
 
 # ==========================
-# AUTH ADMIN
+# AUTH
 # ==========================
 security = HTTPBasic()
 
@@ -114,7 +115,7 @@ def root():
 
 
 # ==========================
-# BOOKING (с сайта)
+# BOOKING
 # ==========================
 @app.post("/booking")
 def booking(data: Booking):
@@ -128,7 +129,7 @@ def booking(data: Booking):
 
 
 # ==========================
-# WEBHOOK MAX (ИСПРАВЛЕННЫЙ)
+# WEBHOOK MAX (РАБОЧИЙ)
 # ==========================
 @app.post("/webhook")
 async def webhook(request: Request):
@@ -144,18 +145,16 @@ async def webhook(request: Request):
     if not user_id:
         return {"ok": True}
 
-    # /start
     if message == "/start":
         send_message_max(
             user_id,
-            "Привет 👋\nЯ бот бронирования магазина\n\nНапиши товар для брони"
+            "Привет 👋\nЯ бот бронирования магазина\nНапиши товар для бронирования"
         )
 
-    # обычный текст
     elif message:
         send_message_max(
             user_id,
-            f"Ты написал: {message}\n\nНапиши имя и телефон для брони"
+            f"Ты написал: {message}\n\nТеперь отправь имя и телефон"
         )
 
     return {"ok": True}
