@@ -55,13 +55,14 @@ def send_message_max(data, text: str):
         url = "https://platform-api2.max.ru/messages"
 
         message = data.get("message", {})
-        recipient = message.get("recipient", {})
+        body = message.get("body", {})
 
-        chat_id = recipient.get("chat_id")
+        mid = body.get("mid")
 
-        # 🔴 ВАЖНО: ТОЛЬКО chat_id, без recipient
         payload = {
-            "chat_id": chat_id,
+            "reply_to": {
+                "mid": mid
+            },
             "text": text
         }
 
@@ -83,7 +84,6 @@ def send_message_max(data, text: str):
 
     except Exception as e:
         print("MAX ERROR:", e)
-
 
 # ==========================
 # AUTH
