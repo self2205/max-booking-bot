@@ -98,35 +98,25 @@ async def webhook(request: Request):
     message = data.get("message", {})
     body = message.get("body", {})
 
-    # =========================
-# 📸 ДОСТАЁМ КАРТИНКУ
-# =========================
-attachments = body.get("attachments", [])
-image_url = None
-
-for a in attachments:
-    if a.get("type") == "image":
-        image_url = a.get("payload", {}).get("url")
-
-print("IMAGE URL:", image_url)
-
     text = body.get("text", "")
     mid = body.get("mid")
+
     user_id = message.get("sender", {}).get("user_id")
 
     if not user_id:
         return {"ok": True}
 
     print("DEBUG:", user_id, text)
+    print("BODY:", body)
 
     state = get_state(user_id)
 
     # =========================
-    # 🖼 КАРТИНКА (ТОЛЬКО 1 СПОСОБ)
+    # 📸 КАРТИНКА MAX
     # =========================
+    attachments = body.get("attachments", [])
     image_url = None
 
-    attachments = body.get("attachments", [])
     for a in attachments:
         if a.get("type") == "image":
             image_url = a.get("payload", {}).get("url")
@@ -139,23 +129,24 @@ print("IMAGE URL:", image_url)
     if text == "/start":
         set_state(user_id, "WAIT_PRODUCT")
 
-        send_message_max(data, "👋 Привет!\n\nЧто хотите забронировать?")
+        send_message_max(
+            data,
+            "👋 Привет!\n\nЧто хотите забронировать?"
+        )
         return {"ok": True}
 
     # =========================
     # PRODUCT
     # =========================
-   if state and state["state"] == "WAIT_PRODUCT":
+    if state and state["state"] == "WAIT_PRODUCT":
 
-    state["data"]["product"] = text
+        state["data"]["product"] = text
+        state["data"]["image_url"] = image_url
 
-    # 📸 СОХРАНЯЕМ КАРТИНКУ
-    state["data"]["image_url"] = image_url
+        set_state(user_id, "WAIT_NAME", state["data"])
 
-    set_state(user_id, "WAIT_NAME", state["data"])
-
-    send_message_max(data, "✍️ Введите ваше имя")
-    return {"ok": True}
+        send_message_max(data, "✍️ Введите ваше имя")
+        return {"ok": True}
 
     # =========================
     # NAME
@@ -175,12 +166,12 @@ print("IMAGE URL:", image_url)
 
         state["data"]["phone"] = text
 
-       booking_id = create_booking(
-    product=state["data"].get("product"),
-    name=state["data"].get("name"),
-    phone=state["data"].get("phone"),
-    image_url=state["data"].get("image_url")
-)
+        booking_id = create_booking(
+            product=state["data"].get("product"),
+            name=state["data"].get("name"),
+            phone=state["data"].get("phone"),
+            image_url=state["data"].get("image_url")
+        )
 
         clear_state(user_id)
 
