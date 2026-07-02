@@ -54,13 +54,20 @@ def send_to_telegram(product, name, phone):
 MAX_TOKEN = "f9LHodD0cOKUy_Tbz6q5rtrtWCdP8ftMcXbxymfoVF6qNAUQkqI9JcL9earTMlC8jPkdXWhctB1zilcJ0JTC"
 
 
-def send_message_max(user_id: int, text: str):
+def send_message_max(data, text: str):
     try:
         url = "https://platform-api2.max.ru/messages"
 
+        message = data.get("message", {})
+        recipient = message.get("recipient", {})
+
+        chat_id = recipient.get("chat_id")
+        chat_type = recipient.get("chat_type")
+
         payload = {
             "recipient": {
-                "user_id": user_id
+                "chat_id": chat_id,
+                "chat_type": chat_type
             },
             "text": text
         }
