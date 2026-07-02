@@ -21,7 +21,7 @@ init_db()
 # ==========================
 # TELEGRAM
 # ==========================
-TG_TOKEN = "8977629291:AAFZLDW_YHDYj8ZB8KePSHQVBgyRaxbmh-Y"
+TG_TOKEN = "PASTE_NEW_TELEGRAM_TOKEN"
 TG_CHAT_ID = "441725473"
 
 
@@ -36,7 +36,10 @@ def send_to_telegram(product, name, phone):
 
         requests.post(
             f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
-            data={"chat_id": TG_CHAT_ID, "text": text},
+            data={
+                "chat_id": TG_CHAT_ID,
+                "text": text
+            },
             timeout=10
         )
 
@@ -45,41 +48,47 @@ def send_to_telegram(product, name, phone):
 
 
 # ==========================
-# MAX SETTINGS
+# MAX
 # ==========================
-MAX_TOKEN = "f9LHodD0cOKUy_Tbz6q5rtrtWCdP8ftMcXbxymfoVF6qNAUQkqI9JcL9earTMlC8jPkdXWhctB1zilcJ0JTC"
+MAX_TOKEN = "PASTE_NEW_MAX_TOKEN"
 
 
-def send_message_max(data, text: str):
+def send_message_max(data, text):
     try:
-        url = "https://platform-api2.max.ru/messages"
-
         message = data.get("message", {})
-        chat_id = message.get("recipient", {}).get("chat_id")
+        recipient = message.get("recipient", {})
 
-        payload = {
-            "chat_id": chat_id,
-            "text": text
-        }
+        chat_id = recipient.get("chat_id")
+
+        url = f"https://platform-api2.max.ru/messages?chat_id={chat_id}"
 
         headers = {
             "Authorization": MAX_TOKEN,
             "Content-Type": "application/json"
         }
 
+        payload = {
+            "text": text
+        }
+
         response = requests.post(
             url,
-            json=payload,
             headers=headers,
+            json=payload,
             verify=False,
             timeout=10
         )
 
-        print("MAX STATUS:", response.status_code)
-        print("MAX RESPONSE:", response.text)
+        print("========== SEND TO MAX ==========")
+        print("URL:", url)
+        print("Payload:", payload)
+        print("Status:", response.status_code)
+        print("Response:", response.text)
+        print("=================================")
 
     except Exception as e:
         print("MAX ERROR:", e)
+
 
 # ==========================
 # AUTH
@@ -91,15 +100,16 @@ ADMIN_PASSWORD = "admin123"
 
 
 def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
-    if not (
-        secrets.compare_digest(credentials.username, ADMIN_LOGIN) and
-        secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
-    ):
+    login_ok = secrets.compare_digest(credentials.username, ADMIN_LOGIN)
+    password_ok = secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
+
+    if not (login_ok and password_ok):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Wrong login",
             headers={"WWW-Authenticate": "Basic"},
         )
+
     return True
 
 
@@ -117,7 +127,10 @@ class Booking(BaseModel):
 # ==========================
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "MAX bot"}
+    return {
+        "status": "ok",
+        "service": "MAX Booking Bot"
+    }
 
 
 # ==========================
@@ -126,18 +139,37 @@ def root():
 @app.post("/booking")
 def booking(data: Booking):
 
-    save_booking(data.product, data.name, data.phone)
-    send_to_telegram(data.product, data.name, data.phone)
+    save_booking(
+        data.product,
+        data.name,
+        data.phone
+    )
+
+    send_to_telegram(
+        data.product,
+        data.name,
+        data.phone
+    )
+
+    print("\n========== НОВАЯ ЗАЯВКА ==========")
+    print(f"Товар: {data.product}")
+    print(f"Имя: {data.name}")
+    print(f"Телефон: {data.phone}")
+    print("=================================\n")
 
     return {"success": True}
 
 
 # ==========================
-# WEBHOOK MAX
+# WEBHOOK
 # ==========================
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
+
+    print("========== MAX EVENT ==========")
+    print(data)
+    print("================================")
 
     message = data.get("message", {})
     text = message.get("body", {}).get("text")
@@ -145,28 +177,19 @@ async def webhook(request: Request):
     print("DEBUG message:", text)
 
     if text == "/start":
-        send_message_max(data, "Привет 👋")
+        send_message_max(
+            data,
+            "Привет 👋\n\nЯ бот бронирования магазина."
+        )
 
     elif text:
-        send_message_max(data, f"Ты написал: {text}")
+        send_message_max(
+            data,
+            f"Ты написал: {text}"
+        )
 
     return {"ok": True}
-
-    # 🔴 защита от падений
-    if not isinstance(recipient, dict):
-        print("ERROR recipient invalid:", recipient)
-        return {"ok": True}
-
-    if text == "/start":
-        send_message_max(data, "Привет 👋\nЯ бот бронирования магазина")
-
-    elif text:
-        send_message_max(data, f"Ты написал: {text}")
-
-    return {"ok": True}
-
-
-# ==========================
+    # ==========================
 # ADMIN PANEL
 # ==========================
 @app.get("/admin", response_class=HTMLResponse)
@@ -185,28 +208,81 @@ def admin(auth: bool = Depends(check_auth)):
     conn.close()
 
     html = """
-<h2>📋 Заявки</h2>
-<table border="1">
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+<meta charset="UTF-8">
+<title>Заявки магазина</title>
+
+<style>
+
+body{
+    font-family:Arial,sans-serif;
+    background:#f5f5f5;
+    margin:40px;
+}
+
+h2{
+    margin-bottom:20px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+}
+
+th{
+    background:#222;
+    color:white;
+    padding:12px;
+}
+
+td{
+    border:1px solid #ddd;
+    padding:12px;
+}
+
+tr:nth-child(even){
+    background:#f8f8f8;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h2>📋 Заявки магазина</h2>
+
+<table>
+
 <tr>
-<th>ID</th>
-<th>Товар</th>
-<th>Имя</th>
-<th>Телефон</th>
-<th>Дата</th>
+    <th>ID</th>
+    <th>Товар</th>
+    <th>Имя</th>
+    <th>Телефон</th>
+    <th>Дата</th>
 </tr>
 """
 
-    for r in rows:
+    for row in rows:
         html += f"""
 <tr>
-<td>{r[0]}</td>
-<td>{r[1]}</td>
-<td>{r[2]}</td>
-<td>{r[3]}</td>
-<td>{r[4]}</td>
+    <td>{row[0]}</td>
+    <td>{row[1]}</td>
+    <td>{row[2]}</td>
+    <td>{row[3]}</td>
+    <td>{row[4]}</td>
 </tr>
 """
 
-    html += "</table>"
+    html += """
+</table>
+
+</body>
+</html>
+"""
 
     return HTMLResponse(content=html)
