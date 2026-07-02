@@ -55,14 +55,10 @@ def send_message_max(data, text: str):
         url = "https://platform-api2.max.ru/messages"
 
         message = data.get("message", {})
-        body = message.get("body", {})
-
-        mid = body.get("mid")
+        chat_id = message.get("recipient", {}).get("chat_id")
 
         payload = {
-            "reply_to": {
-                "mid": mid
-            },
+            "chat_id": chat_id,
             "text": text
         }
 
