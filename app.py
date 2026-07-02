@@ -20,31 +20,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # ==========================
 init_db()
 
-# ==========================
-# TELEGRAM
-# ==========================
-
-def send_to_telegram(product, name, phone):
-    try:
-        text = f"""📦 НОВАЯ ЗАЯВКА
-
-🛍 Товар: {product}
-👤 Имя: {name}
-📞 Телефон: {phone}
-"""
-
-        requests.post(
-            f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
-            data={
-                "chat_id": TG_CHAT_ID,
-                "text": text
-            },
-            timeout=10
-        )
-
-    except Exception as e:
-        print("Telegram error:", e)
-
 
 # ==========================
 # MAX
