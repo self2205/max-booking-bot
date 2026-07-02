@@ -4,8 +4,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 import sqlite3
 import secrets
-import requests
-import certifi
+import httpx
 
 from database import init_db, save_booking
 
@@ -17,7 +16,7 @@ app = FastAPI()
 init_db()
 
 # ==========================
-# TELEGRAM (опционально)
+# TELEGRAM
 # ==========================
 TG_TOKEN = "8977629291:AAFZLDW_YHDYj8ZB8KePSHQVBgyRaxbmh-Y"
 TG_CHAT_ID = "441725473"
@@ -32,13 +31,14 @@ def send_to_telegram(product, name, phone):
 📞 Телефон: {phone}
 """
 
-        requests.post(
+        httpx.post(
             f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
             data={
                 "chat_id": TG_CHAT_ID,
                 "text": text
             }
         )
+
     except Exception as e:
         print("Telegram error:", e)
 
@@ -49,7 +49,7 @@ def send_to_telegram(product, name, phone):
 MAX_TOKEN = "f9LHodD0cOKUy_Tbz6q5rtrtWCdP8ftMcXbxymfoVF6qNAUQkqI9JcL9earTMlC8jPkdXWhctB1zilcJ0JTC"
 
 
-def send_message_max(user_id: int, text: str):
+async def send_message_max(user_id: int, text: str):
     try:
         url = "https://platform-api2.max.ru/messages"
 
@@ -61,16 +61,11 @@ def send_message_max(user_id: int, text: str):
         }
 
         headers = {
-            "Authorization": MAX_TOKEN,   # ❗ БЕЗ Bearer
-            "Content-Type": "application/json"
+            "Authorization": MAX_TOKEN
         }
 
-        response = requests.post(
-            url,
-            json=payload,
-            headers=headers,
-            verify=certifi.where()
-        )
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(url, json=payload, headers=headers)
 
         print("MAX STATUS:", response.status_code)
         print("MAX RESPONSE:", response.text)
@@ -115,11 +110,11 @@ class Booking(BaseModel):
 # ==========================
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "MAX booking bot"}
+    return {"status": "ok", "service": "MAX bot"}
 
 
 # ==========================
-# BOOKING (с сайта)
+# BOOKING
 # ==========================
 @app.post("/booking")
 def booking(data: Booking):
@@ -153,15 +148,15 @@ async def webhook(request: Request):
         return {"ok": True}
 
     if message == "/start":
-        send_message_max(
+        await send_message_max(
             user_id,
             "Привет 👋\nЯ бот бронирования магазина\nНапиши товар для бронирования"
         )
 
     elif message:
-        send_message_max(
+        await send_message_max(
             user_id,
-            f"Ты написал: {message}\n\nТеперь отправь имя и телефон"
+            f"Ты написал: {message}\n\nОтправь имя и телефон для заявки"
         )
 
     return {"ok": True}
@@ -186,23 +181,8 @@ def admin(auth: bool = Depends(check_auth)):
     conn.close()
 
     html = """
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Admin</title>
-<style>
-body{font-family:Arial;background:#f4f4f4;padding:30px;}
-table{width:100%;background:white;border-collapse:collapse;}
-th{background:#222;color:white;padding:10px;}
-td{padding:10px;border:1px solid #ddd;}
-</style>
-</head>
-<body>
-
 <h2>📋 Заявки</h2>
-
-<table>
+<table border="1">
 <tr>
 <th>ID</th>
 <th>Товар</th>
@@ -223,6 +203,6 @@ td{padding:10px;border:1px solid #ddd;}
 </tr>
 """
 
-    html += "</table></body></html>"
+    html += "</table>"
 
     return HTMLResponse(content=html)
