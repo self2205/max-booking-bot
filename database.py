@@ -1,88 +1,27 @@
-import sqlite3
+import os
 
-DB_NAME = "bookings.db"
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
 
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True
+)
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS bookings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            product TEXT,
-            name TEXT,
-            phone TEXT,
-            status TEXT DEFAULT '🟢 Новая',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
 
-    conn.commit()
-    conn.close()
+Base = declarative_base()
 
 
-def save_booking(product, name, phone):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        INSERT INTO bookings(product, name, phone)
-        VALUES (?, ?, ?)
-        """,
-        (product, name, phone),
-    )
-
-    conn.commit()
-    conn.close()
-
-
-def change_status(booking_id):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    cursor.execute(
-        "SELECT status FROM bookings WHERE id=?",
-        (booking_id,),
-    )
-
-    row = cursor.fetchone()
-
-    if not row:
-        conn.close()
-        return
-
-    status = row[0]
-
-    if status == "🟢 Новая":
-        new_status = "🟡 В работе"
-    elif status == "🟡 В работе":
-        new_status = "✅ Выполнена"
-    else:
-        new_status = "🟢 Новая"
-
-    cursor.execute(
-        "UPDATE bookings SET status=? WHERE id=?",
-        (new_status, booking_id),
-    )
-
-    conn.commit()
-    conn.close()
-
-
-def get_bookings():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT id, product, name, phone, status, created_at
-        FROM bookings
-        ORDER BY id DESC
-    """)
-
-    rows = cursor.fetchall()
-
-    conn.close()
-
-    return rows
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
