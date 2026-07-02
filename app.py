@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import sqlite3
 import secrets
 import requests
+import certifi
 
 from database import init_db, save_booking
 
@@ -33,7 +34,10 @@ def send_to_telegram(product, name, phone):
 
         requests.post(
             f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
-            data={"chat_id": TG_CHAT_ID, "text": text}
+            data={
+                "chat_id": TG_CHAT_ID,
+                "text": text
+            }
         )
     except Exception as e:
         print("Telegram error:", e)
@@ -65,7 +69,7 @@ def send_message_max(user_id: int, text: str):
             url,
             json=payload,
             headers=headers,
-            verify=False  # 🔥 ВАЖНО: фикс SSL ошибки
+            verify=certifi.where()
         )
 
         print("MAX STATUS:", response.status_code)
@@ -76,7 +80,7 @@ def send_message_max(user_id: int, text: str):
 
 
 # ==========================
-# AUTH
+# AUTH ADMIN
 # ==========================
 security = HTTPBasic()
 
@@ -111,11 +115,11 @@ class Booking(BaseModel):
 # ==========================
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "MAX bot"}
+    return {"status": "ok", "service": "MAX booking bot"}
 
 
 # ==========================
-# BOOKING
+# BOOKING (с сайта)
 # ==========================
 @app.post("/booking")
 def booking(data: Booking):
@@ -129,7 +133,7 @@ def booking(data: Booking):
 
 
 # ==========================
-# WEBHOOK MAX (РАБОЧИЙ)
+# WEBHOOK MAX
 # ==========================
 @app.post("/webhook")
 async def webhook(request: Request):
@@ -141,6 +145,9 @@ async def webhook(request: Request):
 
     message = data.get("message", {}).get("body", {}).get("text")
     user_id = data.get("message", {}).get("sender", {}).get("user_id")
+
+    print("DEBUG user_id:", user_id)
+    print("DEBUG message:", message)
 
     if not user_id:
         return {"ok": True}
