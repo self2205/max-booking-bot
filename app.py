@@ -84,7 +84,10 @@ def booking(data: Booking):
 # ==========================
 # WEBHOOK MAX
 # ==========================
+from fastapi import Request
 from states import set_state, get_state, clear_state
+from max_service import send_message_max
+from booking_service import create_booking
 
 
 @app.post("/webhook")
@@ -93,18 +96,24 @@ async def webhook(request: Request):
     data = await request.json()
 
     message = data.get("message", {})
-    text = message.get("body", {}).get("text", "").strip()
+    body = message.get("body", {})
+
+    text = body.get("text", "")
+    mid = body.get("mid")
 
     user_id = message.get("sender", {}).get("user_id")
 
     print("DEBUG:", user_id, text)
+    print("BODY:", body)
+
+    if not user_id:
+        return {"ok": True}
+
     state = get_state(user_id)
 
-print("BODY:", message.get("body"))
-    
-    # -------------------------
+    # =========================
     # START
-    # -------------------------
+    # =========================
     if text == "/start":
         set_state(user_id, "WAIT_PRODUCT")
 
@@ -114,47 +123,90 @@ print("BODY:", message.get("body"))
         )
         return {"ok": True}
 
+    # =========================
+    # STEP 1 - PRODUCT
+    # =========================
+    if state and state["state"] == "WAIT_PRODUCT":
+
+        state["data"]["product"] = text
+        set_state(user_id, "WAIT_NAME", state["data"])
+
+        send_message_max(data, "✍️ Введите ваше имя")
+        return {"ok": True}
+
+    # =========================
+    # STEP 2 - NAME
+    # =========================
+    if state and state["state"] == "WAIT_NAME":
+
+        state["data"]["name"] = text
+        set_state(user_id, "WAIT_PHONE", state["data"])
+
+        send_message_max(data, "📞 Введите телефон")
+        return {"ok": True}
+
+    # =========================
+    # STEP 3 - PHONE (FINAL)
+    # =========================
+    if state and state["state"] == "WAIT_PHONE":
+
+        state["data"]["phone"] = text
+
+        booking_id = create_booking(
+            product=state["data"].get("product"),
+            name=state["data"].get("name"),
+            phone=state["data"].get("phone")
+        )
+
+        clear_state(user_id)
+
+        send_message_max(
+            data,
+            f"✅ Заявка создана!\n\nID: {booking_id}"
+        )
+
+        return {"ok": True}
+
+    # =========================
+    # FALLBACK
+    # =========================
+    send_message_max(data, "Напишите /start чтобы начать")
+
+    return {"ok": True}
+
     # -------------------------
-    # STEP 1: PRODUCT
+    # PRODUCT
     # -------------------------
     if state and state["state"] == "WAIT_PRODUCT":
 
         state["data"]["product"] = text
         set_state(user_id, "WAIT_NAME", state["data"])
 
-        send_message_max(
-            data,
-            "✍️ Введите ваше имя"
-        )
+        send_message_max(data, "✍️ Введите ваше имя")
         return {"ok": True}
 
     # -------------------------
-    # STEP 2: NAME
+    # NAME
     # -------------------------
     if state and state["state"] == "WAIT_NAME":
 
         state["data"]["name"] = text
         set_state(user_id, "WAIT_PHONE", state["data"])
 
-        send_message_max(
-            data,
-            "📞 Введите телефон"
-        )
+        send_message_max(data, "📞 Введите телефон")
         return {"ok": True}
 
     # -------------------------
-    # STEP 3: PHONE
+    # PHONE
     # -------------------------
     if state and state["state"] == "WAIT_PHONE":
 
         state["data"]["phone"] = text
 
-        data_order = state["data"]
-
         booking_id = create_booking(
-            product=data_order["product"],
-            name=data_order["name"],
-            phone=data_order["phone"]
+            product=state["data"]["product"],
+            name=state["data"]["name"],
+            phone=state["data"]["phone"]
         )
 
         clear_state(user_id)
