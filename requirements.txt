@@ -3,3 +3,4 @@ uvicorn
 requests
 httpx
 certifi
+psycopg2-binary
