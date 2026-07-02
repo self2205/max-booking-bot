@@ -61,7 +61,7 @@ def send_message_max(user_id: int, text: str):
         }
 
         headers = {
-            "Authorization": f"Bearer {MAX_TOKEN}",
+            "Authorization": MAX_TOKEN,   # ❗ БЕЗ Bearer
             "Content-Type": "application/json"
         }
 
