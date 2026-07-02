@@ -8,6 +8,7 @@ import requests
 import urllib3
 
 from database import init_db, save_booking
+from telegram_service import send_to_telegram
 from config import *
 
 app = FastAPI()
