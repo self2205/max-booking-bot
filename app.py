@@ -98,9 +98,10 @@ async def webhook(request: Request):
     user_id = message.get("sender", {}).get("user_id")
 
     print("DEBUG:", user_id, text)
-
     state = get_state(user_id)
 
+print("BODY:", message.get("body"))
+    
     # -------------------------
     # START
     # -------------------------
