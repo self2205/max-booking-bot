@@ -2,35 +2,37 @@ from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
-import sqlite3
-import secrets
-import requests
-import urllib3
 
-from database import init_db, save_booking
-from booking_service import create_booking
-from telegram_service import send_to_telegram
-from max_service import send_message_max
+import secrets
+
 from config import *
+from database import init_db, get_bookings, change_status
+from booking_service import create_booking
+from max_service import send_message_max
 
 app = FastAPI()
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 # ==========================
-# INIT DB
+# INIT DATABASE
 # ==========================
 init_db()
-
 
 # ==========================
 # AUTH
 # ==========================
 security = HTTPBasic()
 
+
 def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
-    login_ok = secrets.compare_digest(credentials.username, ADMIN_LOGIN)
-    password_ok = secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
+    login_ok = secrets.compare_digest(
+        credentials.username,
+        ADMIN_LOGIN
+    )
+
+    password_ok = secrets.compare_digest(
+        credentials.password,
+        ADMIN_PASSWORD
+    )
 
     if not (login_ok and password_ok):
         raise HTTPException(
@@ -50,7 +52,6 @@ class Booking(BaseModel):
     name: str
     phone: str
 
-
 # ==========================
 # ROOT
 # ==========================
@@ -63,65 +64,66 @@ def root():
 
 
 # ==========================
-# BOOKING
+# BOOKING API
 # ==========================
 @app.post("/booking")
 def booking(data: Booking):
 
-    create_booking(
-        data.product,
-        data.name,
-        data.phone
+    booking_id = create_booking(
+        product=data.product,
+        name=data.name,
+        phone=data.phone
     )
 
-    return {"success": True}
+    return {
+        "success": True,
+        "booking_id": booking_id
+    }
+
 
 # ==========================
-# WEBHOOK
+# WEBHOOK MAX
 # ==========================
 @app.post("/webhook")
 async def webhook(request: Request):
+
     data = await request.json()
 
-    print("========== MAX EVENT ==========")
+    print("\n========== MAX EVENT ==========")
     print(data)
-    print("================================")
+    print("================================\n")
 
     message = data.get("message", {})
-    text = message.get("body", {}).get("text")
+    text = message.get("body", {}).get("text", "").strip()
 
     print("DEBUG message:", text)
 
     if text == "/start":
+
         send_message_max(
             data,
-            "Привет 👋\n\nЯ бот бронирования магазина."
+            "👋 Добро пожаловать!\n\n"
+            "Я помогу вам забронировать товар."
         )
 
     elif text:
+
         send_message_max(
             data,
-            f"Ты написал: {text}"
+            f"Вы написали:\n\n{text}"
         )
 
-    return {"ok": True}
-    # ==========================
+    return {
+        "ok": True
+    }
+    
+# ==========================
 # ADMIN PANEL
 # ==========================
 @app.get("/admin", response_class=HTMLResponse)
 def admin(auth: bool = Depends(check_auth)):
 
-    conn = sqlite3.connect("bookings.db")
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT id, product, name, phone, created_at
-        FROM bookings
-        ORDER BY id DESC
-    """)
-
-    rows = cursor.fetchall()
-    conn.close()
+    rows = get_bookings()
 
     html = """
 <!DOCTYPE html>
@@ -129,39 +131,44 @@ def admin(auth: bool = Depends(check_auth)):
 
 <head>
 <meta charset="UTF-8">
-<title>Заявки магазина</title>
+<title>Заявки</title>
 
 <style>
 
-body{
-    font-family:Arial,sans-serif;
-    background:#f5f5f5;
-    margin:40px;
+body {
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    margin: 40px;
 }
 
-h2{
-    margin-bottom:20px;
+h2 {
+    margin-bottom: 20px;
 }
 
-table{
-    width:100%;
-    border-collapse:collapse;
-    background:white;
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
 }
 
-th{
-    background:#222;
-    color:white;
-    padding:12px;
+th {
+    background: #222;
+    color: white;
+    padding: 12px;
+    text-align: left;
 }
 
-td{
-    border:1px solid #ddd;
-    padding:12px;
+td {
+    border: 1px solid #ddd;
+    padding: 12px;
 }
 
-tr:nth-child(even){
-    background:#f8f8f8;
+tr:nth-child(even) {
+    background: #f8f8f8;
+}
+
+.status {
+    font-weight: bold;
 }
 
 </style>
@@ -179,6 +186,7 @@ tr:nth-child(even){
     <th>Товар</th>
     <th>Имя</th>
     <th>Телефон</th>
+    <th>Статус</th>
     <th>Дата</th>
 </tr>
 """
@@ -186,11 +194,12 @@ tr:nth-child(even){
     for row in rows:
         html += f"""
 <tr>
-    <td>{row[0]}</td>
-    <td>{row[1]}</td>
-    <td>{row[2]}</td>
-    <td>{row[3]}</td>
-    <td>{row[4]}</td>
+    <td>{row['id']}</td>
+    <td>{row['product']}</td>
+    <td>{row['name']}</td>
+    <td>{row['phone']}</td>
+    <td class="status">{row['status']}</td>
+    <td>{row['created_at']}</td>
 </tr>
 """
 
