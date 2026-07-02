@@ -71,10 +71,11 @@ def root():
 def booking(data: Booking):
 
     booking_id = create_booking(
-        product=data.product,
-        name=data.name,
-        phone=data.phone
-    )
+         product=state["data"].get("product"),
+    name=state["data"].get("name"),
+    phone=state["data"].get("phone"),
+    image_url=image_url
+)
 
     return {
         "success": True,
