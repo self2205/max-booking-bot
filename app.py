@@ -11,7 +11,7 @@ from database import init_db, save_booking
 
 app = FastAPI()
 
-# 🔴 ОТКЛЮЧАЕМ SSL WARNINGS (важно для MAX API)
+# отключаем SSL warning (для MAX API)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ==========================
@@ -74,7 +74,7 @@ def send_message_max(user_id: int, text: str):
             url,
             json=payload,
             headers=headers,
-            verify=False,   # 🔥 ВАЖНО: фикс SSL ошибки MAX
+            verify=False,
             timeout=10
         )
 
@@ -86,7 +86,7 @@ def send_message_max(user_id: int, text: str):
 
 
 # ==========================
-# AUTH
+# AUTH ADMIN
 # ==========================
 security = HTTPBasic()
 
@@ -149,26 +149,23 @@ async def webhook(request: Request):
     print(data)
     print("================================")
 
-    message = data.get("message", {}).get("body", {}).get("text")
-    user_id = data.get("message", {}).get("sender", {}).get("user_id")
+    # 🔥 ПРАВИЛЬНОЕ ПОЛУЧЕНИЕ ДАННЫХ
+    message = data.get("message", {})
+    text = message.get("body", {}).get("text")
+    user_id = message.get("sender", {}).get("user_id")
 
     print("DEBUG user_id:", user_id)
-    print("DEBUG message:", message)
+    print("DEBUG message:", text)
 
     if not user_id:
         return {"ok": True}
 
-    if message == "/start":
-        send_message_max(
-            user_id,
-            "Привет 👋\nЯ бот бронирования магазина\nНапиши товар для бронирования"
-        )
+    # 🔘 ЛОГИКА БОТА
+    if text == "/start":
+        send_message_max(user_id, "Привет 👋\nЯ бот бронирования магазина")
 
-    elif message:
-        send_message_max(
-            user_id,
-            f"Ты написал: {message}\n\nТеперь отправь имя и телефон"
-        )
+    elif text:
+        send_message_max(user_id, f"Ты написал: {text}\n\nНапиши товар для бронирования")
 
     return {"ok": True}
 
