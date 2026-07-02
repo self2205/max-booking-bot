@@ -31,3 +31,20 @@ def send_message_max(data, text: str):
 
     except Exception as e:
         print("MAX ERROR:", e)
+
+import requests
+from config import MAX_TOKEN
+
+
+def get_max_message(mid: str):
+    url = f"https://platform-api2.max.ru/messages/{mid}"
+
+    headers = {
+        "Authorization": MAX_TOKEN
+    }
+
+    r = requests.get(url, headers=headers, timeout=10, verify=False)
+
+    print("MAX FULL MESSAGE:", r.text)
+
+    return r.json()
