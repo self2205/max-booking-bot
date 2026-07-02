@@ -68,26 +68,13 @@ def root():
 @app.post("/booking")
 def booking(data: Booking):
 
-    save_booking(
+    create_booking(
         data.product,
         data.name,
         data.phone
     )
-
-    send_to_telegram(
-        data.product,
-        data.name,
-        data.phone
-    )
-
-    print("\n========== НОВАЯ ЗАЯВКА ==========")
-    print(f"Товар: {data.product}")
-    print(f"Имя: {data.name}")
-    print(f"Телефон: {data.phone}")
-    print("=================================\n")
 
     return {"success": True}
-
 
 # ==========================
 # WEBHOOK
