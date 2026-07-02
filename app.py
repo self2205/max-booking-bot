@@ -104,6 +104,12 @@ print("================================")
     message = data.get("message", {})
     body = message.get("body", {})
 
+from max_service import extract_image_from_webhook
+
+image_url = extract_image_from_webhook(message)
+
+print("IMAGE URL:", image_url)
+
     text = body.get("text", "")
     mid = body.get("mid")
 
