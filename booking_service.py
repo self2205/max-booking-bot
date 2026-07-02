@@ -4,23 +4,28 @@ from telegram_service import send_to_telegram
 
 def create_booking(product: str, name: str, phone: str):
     """
-    Сохраняет заявку в БД и отправляет её в Telegram.
+    Создает заявку:
+    - сохраняет в PostgreSQL
+    - отправляет в Telegram
     """
 
-    save_booking(
-        product,
-        name,
-        phone
+    booking_id = save_booking(
+        product=product,
+        name=name,
+        phone=phone
     )
 
     send_to_telegram(
-        product,
-        name,
-        phone
+        product=product,
+        name=name,
+        phone=phone
     )
 
-    print("\n========== НОВОЕ БРОНИРОВАНИЕ ==========")
+    print("\n========== НОВАЯ ЗАЯВКА ==========")
+    print(f"ID: {booking_id}")
     print(f"Товар: {product}")
     print(f"Имя: {name}")
     print(f"Телефон: {phone}")
     print("=================================\n")
+
+    return booking_id
