@@ -8,6 +8,7 @@ import requests
 import urllib3
 
 from database import init_db, save_booking
+from config import *
 
 app = FastAPI()
 
@@ -21,9 +22,6 @@ init_db()
 # ==========================
 # TELEGRAM
 # ==========================
-TG_TOKEN = "8977629291:AAFZLDW_YHDYj8ZB8KePSHQVBgyRaxbmh-Y"
-TG_CHAT_ID = "441725473"
-
 
 def send_to_telegram(product, name, phone):
     try:
@@ -50,8 +48,6 @@ def send_to_telegram(product, name, phone):
 # ==========================
 # MAX
 # ==========================
-MAX_TOKEN = "f9LHodD0cOIMCW44vdMwsn3v4uar9huyEAGCFLd-LqjWqsjrw3rhUNPvZKO9D6n-zLUG8OwfXqWPQNig3qgY"
-
 
 def send_message_max(data, text):
     try:
@@ -94,10 +90,6 @@ def send_message_max(data, text):
 # AUTH
 # ==========================
 security = HTTPBasic()
-
-ADMIN_LOGIN = "admin"
-ADMIN_PASSWORD = "admin123"
-
 
 def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
     login_ok = secrets.compare_digest(credentials.username, ADMIN_LOGIN)
