@@ -104,6 +104,14 @@ print("================================")
 
     message = data.get("message", {})
     body = message.get("body", {})
+image_url = None
+
+attachments = body.get("attachments", [])
+for a in attachments:
+    if a.get("type") == "image":
+        image_url = a.get("payload", {}).get("url")
+
+print("IMAGE URL:", image_url)
 
 from max_service import extract_image_from_webhook
 
