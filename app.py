@@ -84,39 +84,93 @@ def booking(data: Booking):
 # ==========================
 # WEBHOOK MAX
 # ==========================
+from states import set_state, get_state, clear_state
+
+
 @app.post("/webhook")
 async def webhook(request: Request):
 
     data = await request.json()
 
-    print("\n========== MAX EVENT ==========")
-    print(data)
-    print("================================\n")
-
     message = data.get("message", {})
     text = message.get("body", {}).get("text", "").strip()
 
-    print("DEBUG message:", text)
+    user_id = message.get("sender", {}).get("user_id")
 
+    print("DEBUG:", user_id, text)
+
+    state = get_state(user_id)
+
+    # -------------------------
+    # START
+    # -------------------------
     if text == "/start":
+        set_state(user_id, "WAIT_PRODUCT")
 
         send_message_max(
             data,
-            "👋 Добро пожаловать!\n\n"
-            "Я помогу вам забронировать товар."
+            "👋 Привет!\n\nЧто хотите забронировать?"
         )
+        return {"ok": True}
 
-    elif text:
+    # -------------------------
+    # STEP 1: PRODUCT
+    # -------------------------
+    if state and state["state"] == "WAIT_PRODUCT":
+
+        state["data"]["product"] = text
+        set_state(user_id, "WAIT_NAME", state["data"])
 
         send_message_max(
             data,
-            f"Вы написали:\n\n{text}"
+            "✍️ Введите ваше имя"
+        )
+        return {"ok": True}
+
+    # -------------------------
+    # STEP 2: NAME
+    # -------------------------
+    if state and state["state"] == "WAIT_NAME":
+
+        state["data"]["name"] = text
+        set_state(user_id, "WAIT_PHONE", state["data"])
+
+        send_message_max(
+            data,
+            "📞 Введите телефон"
+        )
+        return {"ok": True}
+
+    # -------------------------
+    # STEP 3: PHONE
+    # -------------------------
+    if state and state["state"] == "WAIT_PHONE":
+
+        state["data"]["phone"] = text
+
+        data_order = state["data"]
+
+        booking_id = create_booking(
+            product=data_order["product"],
+            name=data_order["name"],
+            phone=data_order["phone"]
         )
 
-    return {
-        "ok": True
-    }
-    
+        clear_state(user_id)
+
+        send_message_max(
+            data,
+            f"✅ Заявка создана!\n\nID: {booking_id}"
+        )
+
+        return {"ok": True}
+
+    # -------------------------
+    # fallback
+    # -------------------------
+    send_message_max(data, "Напишите /start чтобы начать")
+
+    return {"ok": True}
 # ==========================
 # ADMIN PANEL
 # ==========================
