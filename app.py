@@ -86,65 +86,40 @@ def booking(data: Booking):
 # ==========================
 # WEBHOOK MAX
 # ==========================
-from fastapi import Request
-from states import set_state, get_state, clear_state
-from max_service import send_message_max
-from booking_service import create_booking
-from max_service import get_max_message, extract_image
-
-
 @app.post("/webhook")
 async def webhook(request: Request):
 
-  data = await request.json()
+    data = await request.json()
 
-print("========== FULL DATA ==========")
-print(data)
-print("================================")
+    print("========== FULL DATA ==========")
+    print(data)
+    print("================================")
 
     message = data.get("message", {})
     body = message.get("body", {})
-image_url = None
-
-attachments = body.get("attachments", [])
-for a in attachments:
-    if a.get("type") == "image":
-        image_url = a.get("payload", {}).get("url")
-
-print("IMAGE URL:", image_url)
-
-from max_service import extract_image_from_webhook
-
-image_url = extract_image_from_webhook(message)
-
-print("IMAGE URL:", image_url)
 
     text = body.get("text", "")
     mid = body.get("mid")
-
     user_id = message.get("sender", {}).get("user_id")
-
-    print("DEBUG:", user_id, text)
-    print("BODY:", body)
 
     if not user_id:
         return {"ok": True}
 
+    print("DEBUG:", user_id, text)
+
     state = get_state(user_id)
 
     # =========================
-    # 🖼 КАРТИНКА (ФИКС MAX)
+    # 🖼 КАРТИНКА (ТОЛЬКО 1 СПОСОБ)
     # =========================
     image_url = None
 
-    if mid:
-        try:
-            full_msg = get_max_message(mid)
-            image_url = extract_image(full_msg)
-        except Exception as e:
-            print("IMAGE ERROR:", e)
+    attachments = body.get("attachments", [])
+    for a in attachments:
+        if a.get("type") == "image":
+            image_url = a.get("payload", {}).get("url")
 
-    print("IMAGE_URL:", image_url)
+    print("IMAGE URL:", image_url)
 
     # =========================
     # START
@@ -152,10 +127,7 @@ print("IMAGE URL:", image_url)
     if text == "/start":
         set_state(user_id, "WAIT_PRODUCT")
 
-        send_message_max(
-            data,
-            "👋 Привет!\n\nЧто хотите забронировать?"
-        )
+        send_message_max(data, "👋 Привет!\n\nЧто хотите забронировать?")
         return {"ok": True}
 
     # =========================
