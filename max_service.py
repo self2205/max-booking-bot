@@ -34,3 +34,14 @@ def extract_image(data):
             return m.get("url")
 
     return None
+
+def extract_image_from_webhook(message):
+    body = message.get("body", {})
+
+    attachments = body.get("attachments", [])
+
+    for a in attachments:
+        if a.get("type") == "image":
+            return a.get("payload", {}).get("url")
+
+    return None
