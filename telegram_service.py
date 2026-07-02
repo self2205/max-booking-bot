@@ -11,32 +11,52 @@ def send_to_telegram(product, name, phone, image_url=None):
 📞 Телефон: {phone}
 """
 
-    # =========================
-    # 📸 ЕСЛИ ЕСТЬ КАРТИНКА
-    # =========================
-    if image_url:
-        requests.post(
-            f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
+    try:
+        # =========================
+        # 📸 ЕСЛИ ЕСТЬ КАРТИНКА
+        # =========================
+        if image_url:
+            # скачиваем картинку с MAX
+            img = requests.get(image_url, timeout=10)
+            img.raise_for_status()
+
+            # отправляем в Telegram как файл
+            requests.post(
+                f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
+                data={
+                    "chat_id": TG_CHAT_ID,
+                    "caption": text
+                },
+                files={
+                    "photo": img.content
+                },
+                timeout=10
+            )
+
+            print("📸 Фото отправлено в Telegram")
+            return
+
+        # =========================
+        # 📝 если картинки нет
+        # =========================
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+
+        response = requests.post(
+            url,
             data={
                 "chat_id": TG_CHAT_ID,
-                "photo": image_url,
-                "caption": text
+                "text": text
             },
             timeout=10
         )
-        return
 
-    # =========================
-    # ТЕКСТОВЫЙ ВАРИАНТ
-    # =========================
-    requests.post(
-        f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
-        data={
-            "chat_id": TG_CHAT_ID,
-            "text": text
-        },
-        timeout=10
-    )
+        print("========== TELEGRAM ==========")
+        print("Status:", response.status_code)
+        print("Response:", response.text)
+        print("==============================")
+
+    except Exception as e:
+        print("Telegram error:", e)
 
 # =========================
 # АДМИН КОМАНДЫ В TELEGRAM
