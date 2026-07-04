@@ -33,7 +33,7 @@ def send_message_max(chat_id: int | str, text: str):
     url = "https://platform-api2.max.ru/messages"
 
     headers = {
-        "Authorization": f"Bearer {MAX_TOKEN}",
+        "Authorization": MAX_TOKEN,   # ❗ ВАЖНО: без Bearer
         "Content-Type": "application/json"
     }
 
