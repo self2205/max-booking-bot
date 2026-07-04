@@ -98,8 +98,6 @@ async def webhook(request: Request):
     body = message.get("body", {})
 
     text = body.get("text", "")
-    mid = body.get("mid")
-
     user_id = message.get("sender", {}).get("user_id")
 
     if not user_id:
@@ -108,77 +106,92 @@ async def webhook(request: Request):
     print("DEBUG:", user_id, text)
     print("BODY:", body)
 
-            state = get_state(user_id)
+    # состояние пользователя
+    state = get_state(user_id)
 
-    # =========================
-    # 📸 КАРТИНКА MAX
-    # =========================
+    # --------------------------
+    # Получаем картинку из сообщения
+    # --------------------------
+    image_url = None
+
     attachments = body.get("attachments", [])
-image_url = None
 
-for a in attachments:
-    if a.get("type") == "image":
-        image_url = a.get("payload", {}).get("url")
+    for a in attachments:
+        if a.get("type") == "image":
+            image_url = a.get("payload", {}).get("url")
 
-print("IMAGE URL:", image_url)
+    print("IMAGE URL:", image_url)
 
-if image_url:
-    print("ФОТО ПОЛУЧЕНО ИЗ MAX")
-
-    # =========================
+    # --------------------------
     # START
-    # =========================
+    # --------------------------
     if text == "/start":
+
         set_state(user_id, "WAIT_PRODUCT")
 
         send_message_max(
             data,
             "👋 Привет!\n\nЧто хотите забронировать?"
         )
+
         return {"ok": True}
 
-    # =========================
+    # --------------------------
     # PRODUCT
-    # =========================
+    # --------------------------
     if state and state["state"] == "WAIT_PRODUCT":
 
-    print("IMAGE BEFORE SAVE:", image_url)
+        state["data"]["product"] = text
+        state["data"]["image_url"] = image_url
 
-    state["data"]["product"] = text
-    state["data"]["image_url"] = image_url
+        print("IMAGE SAVED:", image_url)
 
-    print("STATE AFTER SAVE:", state["data"])
+        set_state(
+            user_id,
+            "WAIT_NAME",
+            state["data"]
+        )
 
-    set_state(user_id, "WAIT_NAME", state["data"])
+        send_message_max(
+            data,
+            "✍️ Введите ваше имя"
+        )
 
-    send_message_max(data, "✍️ Введите ваше имя")
-    return {"ok": True}
+        return {"ok": True}
 
-    # =========================
+    # --------------------------
     # NAME
-    # =========================
+    # --------------------------
     if state and state["state"] == "WAIT_NAME":
 
         state["data"]["name"] = text
-        set_state(user_id, "WAIT_PHONE", state["data"])
 
-        send_message_max(data, "📞 Введите телефон")
+        set_state(
+            user_id,
+            "WAIT_PHONE",
+            state["data"]
+        )
+
+        send_message_max(
+            data,
+            "📞 Введите телефон"
+        )
+
         return {"ok": True}
 
-    # =========================
+    # --------------------------
     # PHONE
-    # =========================
+    # --------------------------
     if state and state["state"] == "WAIT_PHONE":
 
         state["data"]["phone"] = text
 
-        print("STATE BEFORE CREATE:", state["data"])
         print("IMAGE BEFORE CREATE:", state["data"].get("image_url"))
 
         booking_id = create_booking(
-            product=state["data"].get("product"),
-            name=state["data"].get("name"),
-            phone=state["data"].get("phone"),
+            product=state["data"]["product"],
+            name=state["data"]["name"],
+            phone=state["data"]["phone"],
             image_url=state["data"].get("image_url")
         )
 
@@ -191,10 +204,13 @@ if image_url:
 
         return {"ok": True}
 
-    # =========================
+    # --------------------------
     # FALLBACK
-    # =========================
-    send_message_max(data, "Напишите /start чтобы начать")
+    # --------------------------
+    send_message_max(
+        data,
+        "Напишите /start чтобы начать"
+    )
 
     return {"ok": True}
 # ==========================
