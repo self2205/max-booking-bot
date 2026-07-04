@@ -109,7 +109,9 @@ async def webhook(request: Request):
     print("DEBUG:", user_id, text)
     print("BODY:", body)
 
-     = get_(user_id)
+     state = get_state(user_id)
+    if not state:
+    state = {"state": "WAIT_PRODUCT", "data": {}}
 
     # =========================
     # 📸 КАРТИНКА MAX
@@ -127,7 +129,7 @@ async def webhook(request: Request):
     # START
     # =========================
     if text == "/start":
-        set_(user_id, "WAIT_PRODUCT")
+        set_state(user_id, "WAIT_PRODUCT", {})
 
         send_message_max(
             data,
@@ -169,11 +171,11 @@ async def webhook(request: Request):
 print("IMAGE BEFORE CREATE:", state["data"].get("image_url"))
         
         booking_id = create_booking(
-            product=state["data"].get("product"),
-            name=state["data"].get("name"),
-            phone=state["data"].get("phone"),
-            image_url=state["data"].get("image_url")
-        )
+    product=data.product,
+    name=data.name,
+    phone=data.phone,
+    image_url=None
+)
 
         clear_state(user_id)
 
