@@ -1,6 +1,6 @@
-import requests
-from config import MAX_TOKEN
-import urllib3
+import config
+print("CONFIG FILE PATH =", config.__file__)
+print("MAX_TOKEN =", repr(config.MAX_TOKEN))
 
 # убрать ssl warnings (чтобы лог не засорялся)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
