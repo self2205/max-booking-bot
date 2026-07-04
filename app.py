@@ -109,7 +109,7 @@ async def webhook(request: Request):
     print("DEBUG:", user_id, text)
     print("BODY:", body)
 
-     state = get_state(user_id)
+state = get_state(user_id)
     if not state:
     state = {"state": "WAIT_PRODUCT", "data": {}}
 
