@@ -71,9 +71,9 @@ def root():
 def booking(data: Booking):
 
     booking_id = create_booking(
-         product=state["data"].get("product"),
-    name=state["data"].get("name"),
-    phone=state["data"].get("phone"),
+         product=["data"].get("product"),
+    name=["data"].get("name"),
+    phone=["data"].get("phone"),
     image_url=image_url
 )
 
@@ -109,7 +109,7 @@ async def webhook(request: Request):
     print("DEBUG:", user_id, text)
     print("BODY:", body)
 
-    state = get_state(user_id)
+     = get_(user_id)
 
     # =========================
     # 📸 КАРТИНКА MAX
@@ -127,7 +127,7 @@ async def webhook(request: Request):
     # START
     # =========================
     if text == "/start":
-        set_state(user_id, "WAIT_PRODUCT")
+        set_(user_id, "WAIT_PRODUCT")
 
         send_message_max(
             data,
@@ -166,6 +166,8 @@ async def webhook(request: Request):
 
         state["data"]["phone"] = text
 
+print("IMAGE BEFORE CREATE:", state["data"].get("image_url"))
+        
         booking_id = create_booking(
             product=state["data"].get("product"),
             name=state["data"].get("name"),
