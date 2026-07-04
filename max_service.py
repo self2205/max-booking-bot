@@ -10,7 +10,7 @@ API_URL = "https://platform-api2.max.ru"
 # =========================
 # ОТПРАВКА СООБЩЕНИЯ
 # =========================
-def send_message_max(user_id, text):
+def send_message_max(chat_id, text):
     url = f"{API_URL}/messages"
 
     headers = {
@@ -20,10 +20,10 @@ def send_message_max(user_id, text):
 
     payload = {
         "recipient": {
-            "user_id": user_id,
+            "chat_id": chat_id,
             "chat_type": "dialog"
         },
-        "message": {
+        "body": {
             "text": text
         }
     }
@@ -85,8 +85,7 @@ def extract_image_from_webhook(message):
 
     for a in body.get("attachments", []):
         if a.get("type") == "image":
-            payload = a.get("payload", {})
-            return payload.get("url")
+            return a.get("payload", {}).get("url")
 
     return None
 
