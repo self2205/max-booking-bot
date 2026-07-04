@@ -123,15 +123,14 @@ async def webhook(request: Request):
     # --------------------------
     # START
     # --------------------------
-    if text == "/start":
+    chat_id = message.get("recipient", {}).get("chat_id")
 
-        set_state(user_id, "WAIT_PRODUCT")
+set_state(user_id, "WAIT_PRODUCT")
 
-        send_message_max(
-            data,
-            "👋 Привет!\n\nЧто хотите забронировать?"
-        )
-
+max_service.send_message_max(
+    chat_id,
+    "👋 Привет!\n\nЧто хотите забронировать?"
+)
         return {"ok": True}
 
     # --------------------------
@@ -170,7 +169,7 @@ async def webhook(request: Request):
             state["data"]
         )
 
-        send_message_max(
+        max_service.send_message_max(
             data,
             "📞 Введите телефон"
         )
@@ -195,7 +194,7 @@ async def webhook(request: Request):
 
         clear_state(user_id)
 
-        send_message_max(
+        max_service.send_message_max(
             data,
             f"✅ Заявка создана!\n\nID: {booking_id}"
         )
@@ -205,7 +204,7 @@ async def webhook(request: Request):
     # --------------------------
     # FALLBACK
     # --------------------------
-    send_message_max(
+   max_service.send_message_max(
         data,
         "Напишите /start чтобы начать"
     )
