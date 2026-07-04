@@ -1,5 +1,0 @@
-fastapi
-uvicorn
-requests
-certifi
-psycopg2-binary
