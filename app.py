@@ -8,7 +8,7 @@ import secrets
 from config import *
 from database import init_db, get_bookings, change_status
 from booking_service import create_booking
-from max_service import send_message_max
+import max_service
 from states import set_state, get_state, clear_state
 
 app = FastAPI()
