@@ -10,7 +10,7 @@ from config import *
 from database import init_db, get_bookings, change_status
 from booking_service import create_booking
 from max_service import send_message_max
-from state import get_state, set_state, clear_state
+from states import get_state, set_state, clear_state
 
 app = FastAPI()
 
