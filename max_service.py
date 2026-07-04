@@ -4,21 +4,27 @@ from config import MAX_TOKEN
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+API_URL = "https://platform-api2.max.ru"
+
 
 # =========================
-# ОТПРАВИТЬ СООБЩЕНИЕ В MAX
+# ОТПРАВКА СООБЩЕНИЯ
 # =========================
 def send_message_max(chat_id, text):
-    url = "https://platform-api2.max.ru/messages"
+    url = f"{API_URL}/messages"
 
     headers = {
-        "Authorization": MAX_TOKEN,
+        "Authorization": f"Bearer {MAX_TOKEN}",
         "Content-Type": "application/json"
     }
 
     payload = {
-        "chat_id": chat_id,
-        "text": text
+        "recipient": {
+            "chat_id": chat_id
+        },
+        "body": {
+            "text": text
+        }
     }
 
     try:
@@ -26,12 +32,14 @@ def send_message_max(chat_id, text):
             url,
             json=payload,
             headers=headers,
-            timeout=10,
+            timeout=15,
             verify=False
         )
 
+        print("========== SEND TO MAX ==========")
         print("STATUS:", r.status_code)
-        print("SEND RESPONSE:", r.text)
+        print("BODY:", r.text)
+        print("=================================")
 
         try:
             return r.json()
@@ -44,29 +52,27 @@ def send_message_max(chat_id, text):
 
 
 # =========================
-# ПОЛУЧИТЬ ПОЛНОЕ СООБЩЕНИЕ
+# ПОЛУЧИТЬ СООБЩЕНИЕ
 # =========================
 def get_max_message(mid):
-    url = f"https://platform-api2.max.ru/messages/{mid}"
+    url = f"{API_URL}/messages/{mid}"
 
     headers = {
-        "Authorization": MAX_TOKEN
+        "Authorization": f"Bearer {MAX_TOKEN}"
     }
 
+    r = requests.get(
+        url,
+        headers=headers,
+        timeout=15,
+        verify=False
+    )
+
+    print(r.text)
+
     try:
-        r = requests.get(
-            url,
-            headers=headers,
-            timeout=10,
-            verify=False
-        )
-
-        print("MAX FULL MESSAGE:", r.text)
-
         return r.json()
-
-    except Exception as e:
-        print("GET MESSAGE ERROR:", e)
+    except:
         return {}
 
 
@@ -78,7 +84,8 @@ def extract_image_from_webhook(message):
 
     for a in body.get("attachments", []):
         if a.get("type") == "image":
-            return a.get("payload", {}).get("url")
+            payload = a.get("payload", {})
+            return payload.get("url")
 
     return None
 
