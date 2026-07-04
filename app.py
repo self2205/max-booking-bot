@@ -125,25 +125,25 @@ print("IMAGE URL:", image_url)
     # =========================
     # START
     # =========================
-if text == "/start":
-    set_state(user_id, "WAIT_PRODUCT", {})
+    if text == "/start":
+        set_state(user_id, "WAIT_PRODUCT", {})
 
-    send_message_max(user_id, "👋 Привет!\n\nЧто хотите забронировать?")
-    return {"ok": True}
+        send_message_max(user_id, "👋 Привет!\n\nЧто хотите забронировать?")
+        return {"ok": True}
 
     # =========================
     # PRODUCT
     # =========================
- if state and state["state"] == "WAIT_PRODUCT":
+    if state and state["state"] == "WAIT_PRODUCT":
 
-    state["data"]["product"] = text
-    state["data"]["image_url"] = image_url
+        state["data"]["product"] = text
+        state["data"]["image_url"] = image_url
 
-    set_state(user_id, "WAIT_NAME", state["data"])
+        set_state(user_id, "WAIT_NAME", state["data"])
 
-    send_message_max(user_id, "✍️ Введите ваше имя")
+        send_message_max(user_id, "✍️ Введите ваше имя")
 
-    return {"ok": True}
+        return {"ok": True}
 
     # =========================
     # NAME
@@ -151,41 +151,41 @@ if text == "/start":
     if state and state["state"] == "WAIT_NAME":
 
         state["data"]["name"] = text
+
         set_state(user_id, "WAIT_PHONE", state["data"])
 
         send_message_max(user_id, "📞 Введите телефон")
+
         return {"ok": True}
 
     # =========================
     # PHONE
     # =========================
-if state and state["state"] == "WAIT_PHONE":
+    if state and state["state"] == "WAIT_PHONE":
 
-    state["data"]["phone"] = text
+        state["data"]["phone"] = text
 
-    booking_id = create_booking(
-        product=state["data"].get("product"),
-        name=state["data"].get("name"),
-        phone=state["data"].get("phone")
-    )
+        booking_id = create_booking(
+            product=state["data"].get("product"),
+            name=state["data"].get("name"),
+            phone=state["data"].get("phone")
+        )
 
-    clear_state(user_id)
+        clear_state(user_id)
 
-    send_message_max(
-        user_id,
-        f"✅ Заявка создана!\n\nID: {booking_id}"
-    )
+        send_message_max(
+            user_id,
+            f"✅ Заявка создана!\n\nID: {booking_id}"
+        )
 
-    return {"ok": True}
+        return {"ok": True}
 
     # =========================
     # FALLBACK
     # =========================
-    
     send_message_max(user_id, "Напишите /start чтобы начать")
 
     return {"ok": True}
-    
 # ==========================
 # ADMIN PANEL
 # ==========================
