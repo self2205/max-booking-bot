@@ -29,7 +29,7 @@ def send_message_max(chat_id: str, text: str):
     url = "https://platform-api2.max.ru/messages"
 
     headers = {
-        "Authorization": MAX_TOKEN,
+        "Authorization": f"Bearer {MAX_TOKEN}",
         "Content-Type": "application/json"
     }
 
@@ -38,14 +38,20 @@ def send_message_max(chat_id: str, text: str):
         "text": text
     }
 
-    r = requests.post(url, json=payload, headers=headers, timeout=10, verify=False)
-
-    print("SEND RESPONSE:", r.text)
-
     try:
-        return r.json()
-    except Exception:
-        return {}
+        r = requests.post(url, json=payload, headers=headers, timeout=10)
+
+        print("STATUS:", r.status_code)
+        print("SEND RESPONSE:", r.text)
+
+        try:
+            return r.json()
+        except:
+            return {"raw": r.text}
+
+    except Exception as e:
+        print("MAX ERROR:", str(e))
+        return {"error": str(e)}
 
 
 # =========================
