@@ -16,12 +16,9 @@ app = FastAPI()
 # ==========================
 # INIT DATABASE
 # ==========================
-init_db()
-
-# ==========================
-# AUTH
-# ==========================
-security = HTTPBasic()
+@app.on_event("startup")
+def startup():
+    init_db()
 
 
 def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
