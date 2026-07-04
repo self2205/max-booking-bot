@@ -84,7 +84,7 @@ async def webhook(request: Request):
 
     text = body.get("text", "")
     user_id = sender.get("user_id")
-    chat_id = recipient.get("chat_id")
+    chat_id = recipient.get("user_id")
 
     if not user_id or not chat_id:
         return {"ok": True}
