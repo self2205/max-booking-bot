@@ -14,8 +14,7 @@ def send_message_max(chat_id, text):
     url = f"{API_URL}/messages"
 
     headers = {
-        "Authorization": f"Bearer {MAX_TOKEN}",
-        "Content-Type": "application/json"
+        "Authorization": MAX_TOKEN
     }
 
     payload = {
