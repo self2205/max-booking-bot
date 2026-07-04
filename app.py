@@ -98,11 +98,9 @@ async def webhook(request: Request):
     message = data.get("message", {})
     body = message.get("body", {})
 
-    recipient = message.get("recipient", {})
-    chat_id = recipient.get("chat_id")
-
     text = body.get("text", "")
     mid = body.get("mid")
+
     user_id = message.get("sender", {}).get("user_id")
 
     if not user_id:
@@ -131,7 +129,7 @@ async def webhook(request: Request):
     if text == "/start":
         set_state(user_id, "WAIT_PRODUCT", {})
 
-        send_message_max(chat_id, "👋 Привет!\n\nЧто хотите забронировать?")
+        send_message_max(user_id, "👋 Привет!\n\nЧто хотите забронировать?")
         return {"ok": True}
 
     # =========================
@@ -144,7 +142,7 @@ async def webhook(request: Request):
 
         set_state(user_id, "WAIT_NAME", state["data"])
 
-        send_message_max(chat_id, "✍️ Введите ваше имя")
+        send_message_max(user_id, "✍️ Введите ваше имя")
         return {"ok": True}
 
     # =========================
@@ -156,7 +154,7 @@ async def webhook(request: Request):
 
         set_state(user_id, "WAIT_PHONE", state["data"])
 
-        send_message_max(chat_id, "📞 Введите телефон")
+        send_message_max(user_id, "📞 Введите телефон")
         return {"ok": True}
 
     # =========================
@@ -175,7 +173,7 @@ async def webhook(request: Request):
         clear_state(user_id)
 
         send_message_max(
-            chat_id,
+            user_id,
             f"✅ Заявка создана!\n\nID: {booking_id}"
         )
 
@@ -184,7 +182,7 @@ async def webhook(request: Request):
     # =========================
     # FALLBACK
     # =========================
-    send_message_max(chat_id, "Напишите /start чтобы начать")
+    send_message_max(user_id, "Напишите /start чтобы начать")
 
     return {"ok": True}
 # ==========================
