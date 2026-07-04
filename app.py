@@ -99,28 +99,28 @@ async def webhook(request: Request):
     body = message.get("body", {})
 
     text = body.get("text", "")
-mid = body.get("mid")
-user_id = message.get("sender", {}).get("user_id")
+    mid = body.get("mid")
+    user_id = message.get("sender", {}).get("user_id")
 
-if not user_id:
-    return {"ok": True}
+    if not user_id:
+        return {"ok": True}
 
-print("DEBUG:", user_id, text)
+    print("DEBUG:", user_id, text)
 
-state = get_state(user_id)
+    state = get_state(user_id)
 
-# =========================
-# КАРТИНКА
-# =========================
-image_url = None
+    # =========================
+    # КАРТИНКА
+    # =========================
+    image_url = None
 
-attachments = body.get("attachments", [])
+    attachments = body.get("attachments", [])
 
-for a in attachments:
-    if a.get("type") == "image":
-        image_url = a.get("payload", {}).get("url")
+    for a in attachments:
+        if a.get("type") == "image":
+            image_url = a.get("payload", {}).get("url")
 
-print("IMAGE URL:", image_url)
+    print("IMAGE URL:", image_url)
 
     # =========================
     # START
@@ -142,7 +142,6 @@ print("IMAGE URL:", image_url)
         set_state(user_id, "WAIT_NAME", state["data"])
 
         send_message_max(user_id, "✍️ Введите ваше имя")
-
         return {"ok": True}
 
     # =========================
@@ -155,7 +154,6 @@ print("IMAGE URL:", image_url)
         set_state(user_id, "WAIT_PHONE", state["data"])
 
         send_message_max(user_id, "📞 Введите телефон")
-
         return {"ok": True}
 
     # =========================
