@@ -1,4 +1,3 @@
-from max_service import get_max_message, extract_image
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -10,6 +9,7 @@ from config import *
 from database import init_db, get_bookings, change_status
 from booking_service import create_booking
 from max_service import send_message_max
+from states import set_state, get_state, clear_state
 
 app = FastAPI()
 
@@ -71,11 +71,10 @@ def root():
 def booking(data: Booking):
 
     booking_id = create_booking(
-         product=["data"].get("product"),
-    name=["data"].get("name"),
-    phone=["data"].get("phone"),
-    image_url=image_url
-)
+        product=data.product,
+        name=data.name,
+        phone=data.phone
+    )
 
     return {
         "success": True,
@@ -109,25 +108,28 @@ async def webhook(request: Request):
     print("DEBUG:", user_id, text)
     print("BODY:", body)
 
-     = get_(user_id)
+            state = get_state(user_id)
 
     # =========================
     # 📸 КАРТИНКА MAX
     # =========================
     attachments = body.get("attachments", [])
-    image_url = None
+image_url = None
 
-    for a in attachments:
-        if a.get("type") == "image":
-            image_url = a.get("payload", {}).get("url")
+for a in attachments:
+    if a.get("type") == "image":
+        image_url = a.get("payload", {}).get("url")
 
-    print("IMAGE URL:", image_url)
+print("IMAGE URL:", image_url)
+
+if image_url:
+    print("ФОТО ПОЛУЧЕНО ИЗ MAX")
 
     # =========================
     # START
     # =========================
     if text == "/start":
-        set_(user_id, "WAIT_PRODUCT")
+        set_state(user_id, "WAIT_PRODUCT")
 
         send_message_max(
             data,
@@ -140,13 +142,17 @@ async def webhook(request: Request):
     # =========================
     if state and state["state"] == "WAIT_PRODUCT":
 
-        state["data"]["product"] = text
-        state["data"]["image_url"] = image_url
+    print("IMAGE BEFORE SAVE:", image_url)
 
-        set_state(user_id, "WAIT_NAME", state["data"])
+    state["data"]["product"] = text
+    state["data"]["image_url"] = image_url
 
-        send_message_max(data, "✍️ Введите ваше имя")
-        return {"ok": True}
+    print("STATE AFTER SAVE:", state["data"])
+
+    set_state(user_id, "WAIT_NAME", state["data"])
+
+    send_message_max(data, "✍️ Введите ваше имя")
+    return {"ok": True}
 
     # =========================
     # NAME
@@ -166,8 +172,9 @@ async def webhook(request: Request):
 
         state["data"]["phone"] = text
 
-print("IMAGE BEFORE CREATE:", state["data"].get("image_url"))
-        
+        print("STATE BEFORE CREATE:", state["data"])
+        print("IMAGE BEFORE CREATE:", state["data"].get("image_url"))
+
         booking_id = create_booking(
             product=state["data"].get("product"),
             name=state["data"].get("name"),
