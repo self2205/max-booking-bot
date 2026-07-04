@@ -13,7 +13,7 @@ def get_max_message(mid: str):
     url = f"https://platform-api2.max.ru/messages/{mid}"
 
     headers = {
-        "Authorization": f"Bearer {MAX_TOKEN}"
+        "Authorization": MAX_TOKEN
     }
 
     try:
