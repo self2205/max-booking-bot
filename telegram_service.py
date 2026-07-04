@@ -4,6 +4,8 @@ from config import TG_TOKEN, TG_CHAT_ID
 
 def send_to_telegram(product, name, phone, image_url=None):
 
+    print("IMAGE IN TELEGRAM:", image_url)
+
     text = f"""📦 НОВАЯ ЗАЯВКА
 
 🛍 Товар: {product}
