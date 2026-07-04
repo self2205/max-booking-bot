@@ -2,7 +2,6 @@ from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
-
 import secrets
 
 from config import *
@@ -12,6 +11,8 @@ import max_service
 from states import set_state, get_state, clear_state
 
 app = FastAPI()
+
+security = HTTPBasic()
 
 # ==========================
 # INIT DATABASE
