@@ -2,7 +2,7 @@ from database import save_booking
 from telegram_service import send_to_telegram
 
 
-def create_booking(product: str, name: str, phone: str):
+def create_booking(product, name, phone, image_url=None):
     """
     Создает заявку:
     - сохраняет в PostgreSQL
@@ -18,7 +18,8 @@ def create_booking(product: str, name: str, phone: str):
     send_to_telegram(
         product=product,
         name=name,
-        phone=phone
+        phone=phone,
+        image_url=image_url
     )
 
     print("\n========== НОВАЯ ЗАЯВКА ==========")
@@ -26,6 +27,7 @@ def create_booking(product: str, name: str, phone: str):
     print(f"Товар: {product}")
     print(f"Имя: {name}")
     print(f"Телефон: {phone}")
+    print(f"Фото: {image_url}")
     print("=================================\n")
 
     return booking_id
