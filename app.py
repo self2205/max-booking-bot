@@ -150,7 +150,7 @@ async def webhook(request: Request):
             state["data"]
         )
 
-        send_message_max(
+        max_service.send_message_max(
             data,
             "✍️ Введите ваше имя"
         )
