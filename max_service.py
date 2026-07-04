@@ -1,54 +1,43 @@
 import requests
-import urllib3
 from config import MAX_TOKEN
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-
-# =========================
-# SEND MESSAGE (FIXED)
-# =========================
-def send_message_max(recipient: dict, text: str):
-    """
-    recipient = message["message"]["recipient"]
-    """
-
-    url = "https://platform-api2.max.ru/messages"
+# 1. Получаем полное сообщение по mid
+def get_max_message(mid: str):
+    url = f"https://platform-api2.max.ru/messages/{mid}"
 
     headers = {
-        "Authorization": f"Bearer {MAX_TOKEN}",
-        "Content-Type": "application/json"
+        "Authorization": MAX_TOKEN
     }
 
-    payload = {
-        "recipient": recipient,
-        "text": text
-    }
+    r = requests.get(url, headers=headers, timeout=10, verify=False)
 
-    try:
-        r = requests.post(
-            url,
-            json=payload,
-            headers=headers,
-            timeout=10,
-            verify=False
-        )
+    print("MAX FULL MESSAGE:", r.text)
 
-        print("STATUS:", r.status_code)
-        print("RESPONSE:", r.text)
-
-        return r.json() if r.text else {}
-
-    except Exception as e:
-        print("MAX ERROR:", e)
-        return {"error": str(e)}
+    return r.json()
 
 
-# =========================
-# EXTRACT IMAGE (WEBHOOK)
-# =========================
+# 2. Достаём картинку из ответа MAX
+def extract_image(data):
+    body = data.get("message", {}).get("body", {})
+
+    attachments = body.get("attachments", [])
+
+    for a in attachments:
+        if a.get("type") == "image":
+            return a.get("url")
+
+    media = body.get("media", [])
+
+    for m in media:
+        if m.get("type") == "image":
+            return m.get("url")
+
+    return None
+
 def extract_image_from_webhook(message):
     body = message.get("body", {})
+
     attachments = body.get("attachments", [])
 
     for a in attachments:
