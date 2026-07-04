@@ -106,11 +106,11 @@ async def webhook(request: Request):
     user_id = message.get("sender", {}).get("user_id")
 
     if not user_id:
-    return {"ok": True}
+        return {"ok": True}
 
-print("DEBUG:", user_id, text)
+    print("DEBUG:", user_id, text)
 
-state = get_state(user_id)
+    state = get_state(user_id)
 
     # =========================
     # КАРТИНКА
