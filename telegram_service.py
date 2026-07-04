@@ -1,62 +1,58 @@
 import requests
 from config import TG_TOKEN, TG_CHAT_ID
+from database import change_status, get_bookings
+
+ADMIN_TG_ID = 441725473  # твой Telegram ID
 
 
+# =========================
+# ОТПРАВКА ЗАЯВКИ (ТЕКСТ + КАРТИНКА)
+# =========================
 def send_to_telegram(product, name, phone, image_url=None):
-
-    text = f"""📦 НОВАЯ ЗАЯВКА
+    try:
+        text = f"""📦 НОВАЯ ЗАЯВКА
 
 🛍 Товар: {product}
 👤 Имя: {name}
 📞 Телефон: {phone}
 """
 
-    try:
-        # =========================
-        # 📸 ЕСЛИ ЕСТЬ КАРТИНКА
-        # =========================
-        if image_url:
-            # скачиваем картинку с MAX
-            img = requests.get(image_url, timeout=10)
-            img.raise_for_status()
+        print("========== TELEGRAM ==========")
 
-            # отправляем в Telegram как файл
-            requests.post(
-                f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
+        # 📸 ЕСЛИ ЕСТЬ КАРТИНКА
+        if image_url:
+            url = f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto"
+
+            response = requests.post(
+                url,
                 data={
                     "chat_id": TG_CHAT_ID,
+                    "photo": image_url,
                     "caption": text
-                },
-                files={
-                    "photo": img.content
                 },
                 timeout=10
             )
 
-            print("📸 Фото отправлено в Telegram")
-            return
+        # 📝 ЕСЛИ КАРТИНКИ НЕТ
+        else:
+            url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
 
-        # =========================
-        # 📝 если картинки нет
-        # =========================
-        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+            response = requests.post(
+                url,
+                data={
+                    "chat_id": TG_CHAT_ID,
+                    "text": text
+                },
+                timeout=10
+            )
 
-        response = requests.post(
-            url,
-            data={
-                "chat_id": TG_CHAT_ID,
-                "text": text
-            },
-            timeout=10
-        )
-
-        print("========== TELEGRAM ==========")
         print("Status:", response.status_code)
         print("Response:", response.text)
         print("==============================")
 
     except Exception as e:
         print("Telegram error:", e)
+
 
 # =========================
 # АДМИН КОМАНДЫ В TELEGRAM
