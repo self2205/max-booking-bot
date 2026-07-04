@@ -57,7 +57,7 @@ def get_max_message(mid):
     url = f"{API_URL}/messages/{mid}"
 
     headers = {
-        "Authorization": f"Bearer {MAX_TOKEN}"
+    "Authorization": MAX_TOKEN
     }
 
     r = requests.get(
