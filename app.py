@@ -98,11 +98,23 @@ async def webhook(request: Request):
     message = data.get("message", {})
     body = message.get("body", {})
 
-    # =========================
-# 📸 ДОСТАЁМ КАРТИНКУ
+    text = body.get("text", "")
+mid = body.get("mid")
+user_id = message.get("sender", {}).get("user_id")
+
+if not user_id:
+    return {"ok": True}
+
+print("DEBUG:", user_id, text)
+
+state = get_state(user_id)
+
 # =========================
-attachments = body.get("attachments", [])
+# КАРТИНКА
+# =========================
 image_url = None
+
+attachments = body.get("attachments", [])
 
 for a in attachments:
     if a.get("type") == "image":
@@ -110,51 +122,27 @@ for a in attachments:
 
 print("IMAGE URL:", image_url)
 
-    text = body.get("text", "")
-    mid = body.get("mid")
-    user_id = message.get("sender", {}).get("user_id")
-
-    if not user_id:
-        return {"ok": True}
-
-    print("DEBUG:", user_id, text)
-
-    state = get_state(user_id)
-
-    # =========================
-    # 🖼 КАРТИНКА (ТОЛЬКО 1 СПОСОБ)
-    # =========================
-    image_url = None
-
-    attachments = body.get("attachments", [])
-    for a in attachments:
-        if a.get("type") == "image":
-            image_url = a.get("payload", {}).get("url")
-
-    print("IMAGE URL:", image_url)
-
     # =========================
     # START
     # =========================
-    if text == "/start":
-        set_state(user_id, "WAIT_PRODUCT")
+if text == "/start":
+    set_state(user_id, "WAIT_PRODUCT", {})
 
-        send_message_max(data, "👋 Привет!\n\nЧто хотите забронировать?")
-        return {"ok": True}
+    send_message_max(user_id, "👋 Привет!\n\nЧто хотите забронировать?")
+    return {"ok": True}
 
     # =========================
     # PRODUCT
     # =========================
-   if state and state["state"] == "WAIT_PRODUCT":
+ if state and state["state"] == "WAIT_PRODUCT":
 
     state["data"]["product"] = text
-
-    # 📸 СОХРАНЯЕМ КАРТИНКУ
     state["data"]["image_url"] = image_url
 
     set_state(user_id, "WAIT_NAME", state["data"])
 
-    send_message_max(data, "✍️ Введите ваше имя")
+    send_message_max(user_id, "✍️ Введите ваше имя")
+
     return {"ok": True}
 
     # =========================
@@ -165,38 +153,39 @@ print("IMAGE URL:", image_url)
         state["data"]["name"] = text
         set_state(user_id, "WAIT_PHONE", state["data"])
 
-        send_message_max(data, "📞 Введите телефон")
+        send_message_max(user_id, "📞 Введите телефон")
         return {"ok": True}
 
     # =========================
     # PHONE
     # =========================
-    if state and state["state"] == "WAIT_PHONE":
+if state and state["state"] == "WAIT_PHONE":
 
-        state["data"]["phone"] = text
+    state["data"]["phone"] = text
 
-       booking_id = create_booking(
-    product=state["data"].get("product"),
-    name=state["data"].get("name"),
-    phone=state["data"].get("phone"),
-    image_url=state["data"].get("image_url")
-)
+    booking_id = create_booking(
+        product=state["data"].get("product"),
+        name=state["data"].get("name"),
+        phone=state["data"].get("phone")
+    )
 
-        clear_state(user_id)
+    clear_state(user_id)
 
-        send_message_max(
-            data,
-            f"✅ Заявка создана!\n\nID: {booking_id}"
-        )
+    send_message_max(
+        user_id,
+        f"✅ Заявка создана!\n\nID: {booking_id}"
+    )
 
-        return {"ok": True}
+    return {"ok": True}
 
     # =========================
     # FALLBACK
     # =========================
-    send_message_max(data, "Напишите /start чтобы начать")
+    
+    send_message_max(user_id, "Напишите /start чтобы начать")
 
     return {"ok": True}
+    
 # ==========================
 # ADMIN PANEL
 # ==========================
