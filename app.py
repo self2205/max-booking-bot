@@ -95,12 +95,18 @@ def book_page(product: str = ""):
 
 
 # ==========================
-# MAX WEBHOOK (FIXED)
+# MAX WEBHOOK
 # ==========================
 @app.post("/webhook")
 async def webhook(request: Request):
 
+    import json
+
     data = await request.json()
+
+    print("\n========== MAX WEBHOOK ==========")
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    print("=================================\n")
 
     message = data.get("message", {})
     body = message.get("body", {})
