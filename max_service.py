@@ -18,38 +18,28 @@ def send_message_max(chat_id, text):
         "Content-Type": "application/json"
     }
 
-    payload = {
-        "recipient": {
-            "chat_id": chat_id,
-            "chat_type": "dialog"
-        },
-        "body": {
-            "text": text
-        }
+    params = {
+        "chat_id": chat_id
     }
 
-    try:
-        r = requests.post(
-            url,
-            json=payload,
-            headers=headers,
-            timeout=15,
-            verify=False
-        )
+    payload = {
+        "text": text
+    }
 
-        print("========== SEND TO MAX ==========")
-        print("STATUS:", r.status_code)
-        print("BODY:", r.text)
-        print("=================================")
+    r = requests.post(
+        url,
+        headers=headers,
+        params=params,
+        json=payload,
+        timeout=15,
+        verify=False
+    )
 
-        try:
-            return r.json()
-        except:
-            return {}
+    print("URL:", r.request.url)
+    print("STATUS:", r.status_code)
+    print("BODY:", r.text)
 
-    except Exception as e:
-        print("MAX ERROR:", e)
-        return {}
+    return r.json() if "application/json" in r.headers.get("Content-Type", "") else {}
 
 
 # =========================
