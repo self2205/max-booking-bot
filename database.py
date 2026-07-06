@@ -22,9 +22,16 @@ def init_db():
             product TEXT NOT NULL,
             name TEXT NOT NULL,
             phone TEXT NOT NULL,
+            image_url TEXT,
             status TEXT DEFAULT '🟢 Новая',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+    """)
+
+    # если таблица уже существовала
+    cur.execute("""
+        ALTER TABLE bookings
+        ADD COLUMN IF NOT EXISTS image_url TEXT;
     """)
 
     conn.commit()
@@ -33,19 +40,20 @@ def init_db():
     conn.close()
 
 
-def save_booking(product, name, phone):
+def save_booking(product, name, phone, image_url=None):
     conn = get_connection()
     cur = conn.cursor()
 
     cur.execute("""
         INSERT INTO bookings
-        (product, name, phone)
-        VALUES (%s, %s, %s)
+        (product, name, phone, image_url)
+        VALUES (%s, %s, %s, %s)
         RETURNING id
     """, (
         product,
         name,
-        phone
+        phone,
+        image_url
     ))
 
     booking = cur.fetchone()
@@ -70,6 +78,7 @@ def get_bookings():
             product,
             name,
             phone,
+            image_url,
             status,
             created_at
         FROM bookings
