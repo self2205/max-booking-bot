@@ -198,21 +198,17 @@ async def telegram_webhook(request: Request):
     photo = message.get("photo")
 
     # ==========================
-    # 💥 FIX: собираем ПОЛНЫЙ ТОВАР
+    # FIX: full product
     # ==========================
-    product_raw = caption if caption else text
-
-    product = "\n".join(
-        [line.strip() for line in product_raw.split("\n") if line.strip()]
-    ).strip()
+    product = (caption if caption else text).strip()
 
     if not product:
         product = "Товар"
 
     # ==========================
-    # MAX LINK (ВАЖНО: encode)
+    # MAX LINK SAFE
     # ==========================
-    product_url = f"https://max.ru/se13456903_bot?start={urllib.parse.quote(product)}"
+    product_url = f"https://max.ru/se13456903_bot?start=product_{urllib.parse.quote(product)}"
 
     reply_markup = json.dumps({
         "inline_keyboard": [
@@ -228,13 +224,13 @@ async def telegram_webhook(request: Request):
     try:
 
         # ==========================
-        # 📸 PHOTO POST
+        # PHOTO FIX (REAL SAFE)
         # ==========================
         if photo:
 
             file_id = photo[-1]["file_id"]
 
-            resp = requests.post(
+            requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
                 data={
                     "chat_id": TG_CHANNEL_CHAT_ID,
@@ -245,12 +241,9 @@ async def telegram_webhook(request: Request):
                 timeout=15
             )
 
-        # ==========================
-        # TEXT POST
-        # ==========================
         else:
 
-            resp = requests.post(
+            requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
                 data={
                     "chat_id": TG_CHANNEL_CHAT_ID,
@@ -259,9 +252,6 @@ async def telegram_webhook(request: Request):
                 },
                 timeout=15
             )
-
-        print("TG STATUS:", resp.status_code)
-        print("TG RESPONSE:", resp.text)
 
     except Exception as e:
         print("TELEGRAM ERROR:", e)
