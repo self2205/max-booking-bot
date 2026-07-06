@@ -173,20 +173,21 @@ async def telegram_webhook(request: Request):
 
     chat = message.get("chat", {})
     chat_id = chat.get("id")
-    text = message.get("text", "")
 
-    # 📸 пробуем достать фото (если есть)
+    text = message.get("text") or message.get("caption") or ""
+
     photo = None
     if message.get("photo"):
-        photo = message["photo"][-1]["file_id"]  # самое большое фото
+        photo = message["photo"][-1]["file_id"]
 
     if not text and not photo:
         return {"ok": True}
 
     product = text.strip() if text else "Товар"
 
+    # ✅ ВАЖНО: правильный endpoint (у тебя есть /booking POST)
     product_url = (
-        "https://max-booking-bot-k3dx.onrender.com/webhook/book?product="
+        "https://max-booking-bot-k3dx.onrender.com/booking?product="
         + urllib.parse.quote(product)
     )
 
@@ -201,25 +202,34 @@ async def telegram_webhook(request: Request):
         ]
     }
 
-    url = f"https://api.telegram.org/bot{TG_TOKEN}/"
-
-    payload = {
-        "chat_id": TG_CHANNEL_CHAT_ID,
-        "reply_markup": reply_markup
-    }
-
     try:
 
-        # 📸 ЕСЛИ ЕСТЬ ФОТО → sendPhoto
+        # 📸 ЕСЛИ ЕСТЬ ФОТО
         if photo:
-            payload["photo"] = photo
-            payload["caption"] = f"📦 {product}"
-            api_url = url + "sendPhoto"
-        else:
-            payload["text"] = f"📦 {product}"
-            api_url = url + "sendMessage"
 
-        resp = requests.post(api_url, json=payload, timeout=10)
+            resp = requests.post(
+                f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
+                json={
+                    "chat_id": TG_CHANNEL_CHAT_ID,
+                    "photo": photo,
+                    "caption": f"📦 {product}",
+                    "reply_markup": reply_markup
+                },
+                timeout=10
+            )
+
+        # 📝 ЕСЛИ ТОЛЬКО ТЕКСТ
+        else:
+
+            resp = requests.post(
+                f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+                json={
+                    "chat_id": TG_CHANNEL_CHAT_ID,
+                    "text": f"📦 {product}",
+                    "reply_markup": reply_markup
+                },
+                timeout=10
+            )
 
         print("========== TELEGRAM RESPONSE ==========")
         print("STATUS:", resp.status_code)
