@@ -65,19 +65,16 @@ def booking(data: Booking):
 @app.post("/webhook")
 async def webhook(request: Request):
 
-    import json
-    import requests
-
     data = await request.json()
 
     print("\n========== MAX WEBHOOK ==========")
-    print(json.dumps(data, ensure_ascii=False, indent=2))
+    print(data)
     print("=================================\n")
 
     update_type = data.get("update_type")
 
     # ==========================
-    # BOT STARTED
+    # BOT STARTED (ВАЖНО)
     # ==========================
     if update_type == "bot_started":
 
@@ -85,18 +82,39 @@ async def webhook(request: Request):
         chat_id = data.get("chat_id")
         payload = data.get("payload", "")
 
+        print("PAYLOAD:", payload)
+
         product = None
-        if payload and "product_" in payload:
-            product = payload.split("product_")[-1].strip()
+
+        # ==========================
+        # FIX: нормальный парсинг
+        # ==========================
+        if payload:
+
+            # вариант 1: product_
+            if payload.startswith("product_"):
+                product = payload.replace("product_", "").strip()
+
+            # вариант 2: param1_value1_param2_value2
+            elif "_" in payload:
+                product = payload.split("_")[1].strip()
+
+            else:
+                product = payload.strip()
 
         if product:
-            set_state(user_id, "WAIT_NAME", {"product": product})
+
+            set_state(user_id, "WAIT_NAME", {
+                "product": product
+            })
 
             send_message_max(
                 chat_id,
                 f"🟢 Бронирование\n\n📦 {product}\n\n✍️ Введите ваше имя"
             )
+
         else:
+
             set_state(user_id, "WAIT_PRODUCT", {})
 
             send_message_max(
@@ -107,7 +125,7 @@ async def webhook(request: Request):
         return {"ok": True}
 
     # ==========================
-    # MESSAGE
+    # MESSAGE FLOW
     # ==========================
     if update_type != "message_created":
         return {"ok": True}
@@ -125,37 +143,18 @@ async def webhook(request: Request):
 
     state = get_state(user_id)
 
-    # ==========================
-    # IMAGE EXTRACT (ВАЖНО)
-    # ==========================
-    photo_url = None
-
-    for a in body.get("attachments", []):
-        if a.get("type") == "image":
-            photo_url = a.get("payload", {}).get("url")
-
-    # ==========================
-    # START
-    # ==========================
     if text == "/start":
         set_state(user_id, "WAIT_PRODUCT", {})
         send_message_max(chat_id, "👋 Привет!\n\nЧто хотите забронировать?")
         return {"ok": True}
 
-    # ==========================
-    # PRODUCT STEP
-    # ==========================
     if state and state["state"] == "WAIT_PRODUCT":
         state["data"]["product"] = text
-        state["data"]["image_url"] = photo_url
 
         set_state(user_id, "WAIT_NAME", state["data"])
         send_message_max(chat_id, "✍️ Введите ваше имя")
         return {"ok": True}
 
-    # ==========================
-    # NAME STEP
-    # ==========================
     if state and state["state"] == "WAIT_NAME":
         state["data"]["name"] = text
 
@@ -163,9 +162,6 @@ async def webhook(request: Request):
         send_message_max(chat_id, "📞 Введите телефон")
         return {"ok": True}
 
-    # ==========================
-    # PHONE STEP (ЗАЯВКА)
-    # ==========================
     if state and state["state"] == "WAIT_PHONE":
         state["data"]["phone"] = text
 
@@ -173,7 +169,7 @@ async def webhook(request: Request):
             product=state["data"].get("product"),
             name=state["data"].get("name"),
             phone=state["data"].get("phone"),
-            image_url=state["data"].get("image_url")   # 🔥 ВОТ ГЛАВНЫЙ ФИКС
+            image_url=state["data"].get("image_url")
         )
 
         clear_state(user_id)
@@ -186,7 +182,6 @@ async def webhook(request: Request):
         return {"ok": True}
 
     return {"ok": True}
-
 # ==========================
 # TELEGRAM WEBHOOK (FINAL FIX)
 # ==========================
