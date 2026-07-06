@@ -2,7 +2,7 @@ import requests
 import urllib.parse
 import re
 
-from config import TG_TOKEN, TG_CHAT_ID, TG_CHANNEL_CHAT_ID
+from config import TG_TOKEN, TG_CHANNEL_CHAT_ID
 from database import change_status, get_bookings
 
 ADMIN_TG_ID = 441725473
@@ -25,6 +25,39 @@ def build_product_url(text: str):
 
 
 # ==========================
+# ОТПРАВКА В КАНАЛ (FIXED)
+# ==========================
+def send_to_channel(product: str):
+
+    product = clean_product(product)
+    url = build_product_url(product)
+
+    payload = {
+        "chat_id": TG_CHANNEL_CHAT_ID,
+        "text": f"📦 {product}",
+        "reply_markup": {
+            "inline_keyboard": [
+                [
+                    {
+                        "text": "🟢 Забронировать",
+                        "url": url
+                    }
+                ]
+            ]
+        }
+    }
+
+    resp = requests.post(
+        f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+        json=payload,
+        timeout=15
+    )
+
+    print("CHANNEL RESPONSE:", resp.status_code, resp.text)
+    return resp.json()
+
+
+# ==========================
 # TELEGRAM SEND (ЗАЯВКИ MAX → ТЕБЕ)
 # ==========================
 def send_to_telegram(product, name, phone, image_url=None):
@@ -43,7 +76,7 @@ def send_to_telegram(product, name, phone, image_url=None):
             requests.post(
                 url,
                 data={
-                    "chat_id": TG_CHAT_ID,
+                    "chat_id": TG_CHANNEL_CHAT_ID,
                     "photo": image_url,
                     "caption": text
                 },
@@ -56,7 +89,7 @@ def send_to_telegram(product, name, phone, image_url=None):
             requests.post(
                 url,
                 data={
-                    "chat_id": TG_CHAT_ID,
+                    "chat_id": TG_CHANNEL_CHAT_ID,
                     "text": text
                 },
                 timeout=15
@@ -67,38 +100,24 @@ def send_to_telegram(product, name, phone, image_url=None):
 
 
 # ==========================
-# НОВОЕ: ОТПРАВКА В КАНАЛ
+# POST GENERATOR
 # ==========================
-def send_to_channel(product):
-    try:
+def handle_post_generator(message, send_func):
 
-        product = clean_product(product)
+    text = message.get("text", "").strip()
 
-        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+    if not text or text.startswith("/"):
+        return False
 
-        reply_markup = {
-            "inline_keyboard": [
-                [
-                    {
-                        "text": "🟢 Забронировать",
-                        "url": build_product_url(product)
-                    }
-                ]
-            ]
-        }
+    product = clean_product(text)
 
-        requests.post(
-            url,
-            data={
-                "chat_id": TG_CHANNEL_CHAT_ID,
-                "text": f"📦 {product}",
-                "reply_markup": reply_markup
-            },
-            timeout=15
-        )
+    # 👉 ОТПРАВКА В КАНАЛ
+    send_to_channel(product)
 
-    except Exception as e:
-        print("Channel error:", e)
+    # (опционально) ответ в бота
+    send_func(f"📦 Опубликовано: {product}")
+
+    return True
 
 
 # ==========================
@@ -134,41 +153,6 @@ def handle_admin_commands(message, send_func):
 
         send_func(msg)
         return
-
-
-# ==========================
-# POST GENERATOR
-# ==========================
-def handle_post_generator(message, send_func):
-
-    text = message.get("text", "").strip()
-
-    if not text or text.startswith("/"):
-        return False
-
-    product = clean_product(text)
-
-    # 👉 ВАЖНО: теперь отправляем В КАНАЛ
-    send_to_channel(product)
-
-    reply_markup = {
-        "inline_keyboard": [
-            [
-                {
-                    "text": "🟢 Забронировать",
-                    "url": build_product_url(product)
-                }
-            ]
-        ]
-    }
-
-    # (если хочешь — можешь оставить отправку в бота)
-    send_func(
-        f"📦 {product}",
-        reply_markup=reply_markup
-    )
-
-    return True
 
 
 # ==========================
