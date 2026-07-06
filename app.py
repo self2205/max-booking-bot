@@ -100,36 +100,41 @@ def book_page(product: str = ""):
 @app.post("/webhook")
 async def webhook(request: Request):
 
-    import json
-    import re
+    import json, base64
 
     data = await request.json()
 
     print("\n========== MAX WEBHOOK ==========")
-    print(json.dumps(data, ensure_ascii=False, indent=2))
+    print(data)
     print("=================================\n")
 
-    update_type = data.get("update_type")
-
     # ==========================
-    # BOT STARTED (КНОПКА /start)
+    # START (кнопка из Telegram)
     # ==========================
-    if update_type == "bot_started":
+    if data.get("update_type") == "bot_started":
 
         user_id = data.get("user_id")
         chat_id = data.get("chat_id")
         payload = data.get("payload", "")
 
-        # payload = "product_Товар..."
         product = None
+        photo = None
 
-        if payload and payload.startswith("product_"):
-            product = payload.replace("product_", "").strip()
+        try:
+            decoded = base64.urlsafe_b64decode(payload).decode()
+            obj = json.loads(decoded)
+
+            product = obj.get("product")
+            photo = obj.get("photo")
+
+        except Exception as e:
+            print("START decode error:", e)
 
         if product:
 
             set_state(user_id, "WAIT_NAME", {
-                "product": product
+                "product": product,
+                "photo": photo
             })
 
             send_message_max(
@@ -151,7 +156,7 @@ async def webhook(request: Request):
     # ==========================
     # MESSAGE
     # ==========================
-    if update_type != "message_created":
+    if data.get("update_type") != "message_created":
         return {"ok": True}
 
     message = data.get("message", {})
@@ -168,57 +173,45 @@ async def webhook(request: Request):
     state = get_state(user_id)
 
     # ==========================
-    # START
-    # ==========================
-    if text == "/start":
-        set_state(user_id, "WAIT_PRODUCT", {})
-        send_message_max(chat_id, "👋 Привет!\n\nЧто хотите забронировать?")
-        return {"ok": True}
-
-    # ==========================
-    # PRODUCT STEP
+    # STEP PRODUCT
     # ==========================
     if state and state["state"] == "WAIT_PRODUCT":
         state["data"]["product"] = text
-
         set_state(user_id, "WAIT_NAME", state["data"])
+
         send_message_max(chat_id, "✍️ Введите ваше имя")
         return {"ok": True}
 
     # ==========================
-    # NAME STEP
+    # STEP NAME
     # ==========================
     if state and state["state"] == "WAIT_NAME":
         state["data"]["name"] = text
-
         set_state(user_id, "WAIT_PHONE", state["data"])
+
         send_message_max(chat_id, "📞 Введите телефон")
         return {"ok": True}
 
     # ==========================
-    # PHONE STEP
+    # STEP PHONE
     # ==========================
     if state and state["state"] == "WAIT_PHONE":
         state["data"]["phone"] = text
 
-        booking_id = create_booking(
+        create_booking(
             product=state["data"].get("product"),
             name=state["data"].get("name"),
             phone=state["data"].get("phone"),
-            image_url=state["data"].get("image_url")
+            image_url=state["data"].get("photo")
         )
 
         clear_state(user_id)
 
-        send_message_max(
-            chat_id,
-            f"✅ Заявка создана!\nID: {booking_id}"
-        )
+        send_message_max(chat_id, "✅ Заявка создана!")
 
         return {"ok": True}
 
     return {"ok": True}
-
 
 # ==========================
 # TELEGRAM WEBHOOK (FIXED)
@@ -232,76 +225,71 @@ async def telegram_webhook(request: Request):
     if not message:
         return {"ok": True}
 
+    chat = message.get("chat", {})
+    chat_id = chat.get("id")
+
     text = message.get("text") or message.get("caption") or ""
 
-    photo = None
-    image_url = ""
+    photo_url = None
 
-    # ==========================
-    # Получаем ссылку на фото
-    # ==========================
+    # 📸 ВАЖНО: получаем реальный URL фото (не file_id)
     if message.get("photo"):
+        file_id = message["photo"][-1]["file_id"]
 
-        photo = message["photo"][-1]["file_id"]
-
-        r = requests.get(
+        file_info = requests.get(
             f"https://api.telegram.org/bot{TG_TOKEN}/getFile",
-            params={
-                "file_id": photo
-            },
-            timeout=10
-        )
+            params={"file_id": file_id}
+        ).json()
 
-        data_file = r.json()
+        file_path = file_info["result"]["file_path"]
 
-        if data_file.get("ok"):
+        photo_url = f"https://api.telegram.org/file/bot{TG_TOKEN}/{file_path}"
 
-            file_path = data_file["result"]["file_path"]
-
-            image_url = (
-                f"https://api.telegram.org/file/bot{TG_TOKEN}/{file_path}"
-            )
-
-    if not text and not image_url:
+    if not text and not photo_url:
         return {"ok": True}
 
     product = text.strip() if text else "Товар"
 
-    # Передаём товар + фото в MAX
-    start_data = f"product={product}|photo={image_url}"
+    # ==========================
+    # MAX start payload (кодируем всё)
+    # ==========================
+    import json, base64
 
-    start_param = urllib.parse.quote(start_data)
+    payload_data = {
+        "product": product,
+        "photo": photo_url
+    }
 
-    product_url = (
-        f"https://max.ru/se13456903_bot?start={start_param}"
-    )
+    encoded = base64.urlsafe_b64encode(
+        json.dumps(payload_data, ensure_ascii=False).encode()
+    ).decode()
+
+    product_url = f"https://max.ru/se13456903_bot?start={encoded}"
 
     reply_markup = {
-        "inline_keyboard": [[
-            {
-                "text": "🟢 Забронировать",
-                "url": product_url
-            }
-        ]]
+        "inline_keyboard": [
+            [
+                {
+                    "text": "🟢 Забронировать",
+                    "url": product_url
+                }
+            ]
+        ]
     }
 
     try:
-
-        if photo:
-
+        if photo_url:
             requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
                 json={
                     "chat_id": TG_CHANNEL_CHAT_ID,
-                    "photo": photo,
+                    "photo": photo_url,
                     "caption": f"📦 {product}",
                     "reply_markup": reply_markup
                 },
                 timeout=10
             )
-
         else:
-
             requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
                 json={
