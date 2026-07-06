@@ -205,8 +205,7 @@ async def webhook(request: Request):
     # ==========================
     # ЧЕЛОВЕК ОТКРЫЛ БОТА ПО КНОПКЕ
     # ==========================
-
-   if update_type == "bot_started":
+    if update_type == "bot_started":
 
     user_id = data.get("user_id")
     chat_id = data.get("chat_id")
@@ -370,13 +369,6 @@ async def webhook(request: Request):
         return {
             "ok": True
         }
-
- id="4c8v7k"
-        return {
-            "ok": True
-        }
-
-
 
     # ==========================
     # ИМЯ
