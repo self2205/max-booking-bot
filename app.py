@@ -206,82 +206,57 @@ async def webhook(request: Request):
     # ЧЕЛОВЕК ОТКРЫЛ БОТА ПО КНОПКЕ
     # ==========================
 
-    if update_type == "bot_started":
+   if update_type == "bot_started":
+
+    user_id = data.get("user_id")
+    chat_id = data.get("chat_id")
+    payload = data.get("payload", "")
+
+    print("RAW PAYLOAD:", payload)
 
 
-        user_id = data.get("user_id")
-        chat_id = data.get("chat_id")
+    # ==========================
+    # РАСПАКОВКА ДАННЫХ ИЗ КНОПКИ
+    # ==========================
 
-        payload = data.get("payload", "")
-
-
-        print("RAW START PAYLOAD:")
-        print(payload)
+    decoded = decode_payload(payload)
 
 
-
-        info = decode_payload(payload)
-
-
-        print("DECODED DATA:")
-        print(info)
+    product = decoded.get("product")
+    image_url = decoded.get("image_url")
 
 
-
-        product = info.get("product")
-        image_url = info.get("image_url")
-
-
-
-        if product:
-
-
-            set_state(
-                user_id,
-                "WAIT_NAME",
-                {
-                    "product": product,
-                    "image_url": image_url
-                }
-            )
-
-
-            send_message_max(
-                chat_id,
-                f"""
-🟢 Бронирование
-
-📦 Товар:
-{product}
-
-✍️ Введите ваше имя
-"""
-            )
-
-
-        else:
-
-
-            set_state(
-                user_id,
-                "WAIT_PRODUCT",
-                {}
-            )
-
-
-            send_message_max(
-                chat_id,
-                "👋 Привет!\n\nЧто хотите забронировать?"
-            )
-
-
-        return {
-            "ok": True
-        }
+    print("PRODUCT:", product)
+    print("IMAGE:", image_url)
 
 
 
+    if product:
 
+        set_state(user_id, "WAIT_NAME", {
+            "product": product,
+            "image_url": image_url
+        })
+
+
+        send_message_max(
+            chat_id,
+            f"🟢 Бронирование\n\n📦 {product}\n\n✍️ Введите ваше имя"
+        )
+
+
+    else:
+
+        set_state(user_id, "WAIT_PRODUCT", {})
+
+
+        send_message_max(
+            chat_id,
+            "👋 Привет!\n\nЧто хотите забронировать?"
+        )
+
+
+    return {"ok": True}
     # ==========================
     # ОБЫЧНОЕ СООБЩЕНИЕ
     # ==========================
