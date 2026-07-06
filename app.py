@@ -60,42 +60,6 @@ def booking(data: Booking):
 
 
 # ==========================
-# 🔥 PAGE ДЛЯ КНОПКИ
-# ==========================
-@app.get("/book")
-def book_page(product: str = ""):
-
-    safe_product = urllib.parse.quote(product)
-
-    html = f"""
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <title>Бронирование</title>
-    </head>
-
-    <body style="font-family: Arial; text-align:center; padding-top:80px;">
-
-        <h2>📦 Бронирование товара</h2>
-
-        <h3>{product}</h3>
-
-        <p>Нажмите кнопку ниже — вы перейдёте в MAX для оформления брони</p>
-
-        <a href="https://max-booking-bot-k3dx.onrender.com/book?product={safe_product}"
-           style="display:inline-block;padding:15px 25px;background:green;color:white;
-           text-decoration:none;border-radius:10px;font-size:18px;">
-           🟢 Забронировать в MAX
-        </a>
-
-    </body>
-    </html>
-    """
-
-    return HTMLResponse(content=html)
-
-
-# ==========================
 # MAX WEBHOOK (FINAL FIX)
 # ==========================
 @app.post("/webhook")
@@ -240,21 +204,37 @@ async def telegram_webhook(request: Request):
 
     text = message.get("text") or message.get("caption") or ""
 
-    photo_file_id = None
-    if message.get("photo"):
-        photo_file_id = message["photo"][-1]["file_id"]
+    # ==========================
+    # 📸 ДОСТАЁМ ФОТО (ВАЖНО)
+    # ==========================
+    photo_url = None
 
-    if not text and not photo_file_id:
+    if message.get("photo"):
+        file_id = message["photo"][-1]["file_id"]
+
+        file_info = requests.get(
+            f"https://api.telegram.org/bot{TG_TOKEN}/getFile",
+            params={"file_id": file_id}
+        ).json()
+
+        file_path = file_info["result"]["file_path"]
+
+        photo_url = f"https://api.telegram.org/file/bot{TG_TOKEN}/{file_path}"
+
+    if not text and not photo_url:
         return {"ok": True}
 
     product = text.strip() if text else "Товар"
 
+    # ==========================
+    # 🟢 ССЫЛКА В MAX (ВАЖНО)
+    # ==========================
     product_url = (
         "https://max.ru/se13456903_bot?start="
-        + urllib.parse.quote(f"product_{product}")
+        + urllib.parse.quote(product)
     )
 
-    reply_markup = json.dumps({
+    reply_markup = {
         "inline_keyboard": [
             [
                 {
@@ -263,39 +243,40 @@ async def telegram_webhook(request: Request):
                 }
             ]
         ]
-    }, ensure_ascii=False)
+    }
 
     try:
 
-        # 📸 PHOTO POST (СТАБИЛЬНЫЙ ВАРИАНТ)
-        if photo_file_id:
+        # ==========================
+        # 📸 ЕСЛИ ЕСТЬ ФОТО
+        # ==========================
+        if photo_url:
 
-            resp = requests.post(
+            requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
-                data={
+                json={
                     "chat_id": TG_CHANNEL_CHAT_ID,
-                    "photo": photo_file_id,
+                    "photo": photo_url,
                     "caption": f"📦 {product}",
                     "reply_markup": reply_markup
                 },
                 timeout=10
             )
 
-        # 📝 TEXT POST
+        # ==========================
+        # 📝 ЕСЛИ ТОЛЬКО ТЕКСТ
+        # ==========================
         else:
 
-            resp = requests.post(
+            requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
-                data={
+                json={
                     "chat_id": TG_CHANNEL_CHAT_ID,
                     "text": f"📦 {product}",
                     "reply_markup": reply_markup
                 },
                 timeout=10
             )
-
-        print("STATUS:", resp.status_code)
-        print("BODY:", resp.text)
 
     except Exception as e:
         print("TELEGRAM ERROR:", e)
