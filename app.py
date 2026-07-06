@@ -173,16 +173,17 @@ async def telegram_webhook(request: Request):
 
     chat = message.get("chat", {})
     chat_id = chat.get("id")
-    text = message.get("text")
+    text = message.get("text", "")
 
-    print("CHAT ID:", chat_id)
-    print("TEXT:", text)
+    # 📸 пробуем достать фото (если есть)
+    photo = None
+    if message.get("photo"):
+        photo = message["photo"][-1]["file_id"]  # самое большое фото
 
-    # игнор пустых и команд
-    if not text or text.startswith("/"):
+    if not text and not photo:
         return {"ok": True}
 
-    product = text.strip()
+    product = text.strip() if text else "Товар"
 
     product_url = (
         "https://max-booking-bot-k3dx.onrender.com/webhook/book?product="
@@ -200,16 +201,25 @@ async def telegram_webhook(request: Request):
         ]
     }
 
-    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+    url = f"https://api.telegram.org/bot{TG_TOKEN}/"
 
     payload = {
         "chat_id": TG_CHANNEL_CHAT_ID,
-        "text": f"📦 {product}",
         "reply_markup": reply_markup
     }
 
     try:
-        resp = requests.post(url, json=payload, timeout=10)
+
+        # 📸 ЕСЛИ ЕСТЬ ФОТО → sendPhoto
+        if photo:
+            payload["photo"] = photo
+            payload["caption"] = f"📦 {product}"
+            api_url = url + "sendPhoto"
+        else:
+            payload["text"] = f"📦 {product}"
+            api_url = url + "sendMessage"
+
+        resp = requests.post(api_url, json=payload, timeout=10)
 
         print("========== TELEGRAM RESPONSE ==========")
         print("STATUS:", resp.status_code)
