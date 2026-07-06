@@ -8,6 +8,7 @@ import urllib.parse
 import base64
 import json
 import requests
+import base64
 
 from config import *
 from database import init_db, get_bookings
@@ -25,6 +26,40 @@ app = FastAPI()
 
 init_db()
 
+# ==========================
+# MAX PAYLOAD ENCODER
+# ==========================
+
+def encode_payload(data: dict):
+
+    raw = json.dumps(
+        data,
+        ensure_ascii=False
+    )
+
+    encoded = base64.urlsafe_b64encode(
+        raw.encode("utf-8")
+    ).decode("utf-8")
+
+    return encoded
+
+
+
+def decode_payload(payload: str):
+
+    try:
+
+        raw = base64.urlsafe_b64decode(
+            payload.encode("utf-8")
+        ).decode("utf-8")
+
+        return json.loads(raw)
+
+    except Exception as e:
+
+        print("PAYLOAD ERROR:", e)
+
+        return {}
 
 # ==========================
 # ADMIN AUTH
