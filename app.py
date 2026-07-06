@@ -210,7 +210,7 @@ async def telegram_webhook(request: Request):
     product = text.strip() if text else "Товар"
 
     # ==========================
-    # PHOTO URL
+    # PHOTO URL (ВАЖНО)
     # ==========================
     photo_url = None
 
@@ -226,11 +226,11 @@ async def telegram_webhook(request: Request):
         photo_url = f"https://api.telegram.org/file/bot{TG_TOKEN}/{file_path}"
 
     # ==========================
-    # MAX LINK
+    # LINK
     # ==========================
     product_url = f"https://max.ru/se13456903_bot?start={urllib.parse.quote(product)}"
 
-    reply_markup = {
+    reply_markup = json.dumps({
         "inline_keyboard": [
             [
                 {
@@ -239,36 +239,34 @@ async def telegram_webhook(request: Request):
                 }
             ]
         ]
-    }
-
-    telegram_api = f"https://api.telegram.org/bot{TG_TOKEN}"
+    })
 
     try:
 
         # ==========================
-        # 📸 SEND PHOTO (FIX — DATA!)
+        # PHOTO POST (FIXED 100%)
         # ==========================
         if photo_url:
 
             resp = requests.post(
-                f"{telegram_api}/sendPhoto",
+                f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
                 data={
                     "chat_id": TG_CHANNEL_CHAT_ID,
                     "photo": photo_url,
                     "caption": f"📦 {product}",
-                    "reply_markup": json.dumps(reply_markup)
+                    "reply_markup": reply_markup
                 },
                 timeout=10
             )
 
         # ==========================
-        # TEXT
+        # TEXT POST
         # ==========================
         else:
 
             resp = requests.post(
-                f"{telegram_api}/sendMessage",
-                json={
+                f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+                data={
                     "chat_id": TG_CHANNEL_CHAT_ID,
                     "text": f"📦 {product}",
                     "reply_markup": reply_markup
@@ -276,7 +274,8 @@ async def telegram_webhook(request: Request):
                 timeout=10
             )
 
-        print("TG RESPONSE:", resp.status_code, resp.text)
+        print("TG STATUS:", resp.status_code)
+        print("TG BODY:", resp.text)
 
     except Exception as e:
         print("TELEGRAM ERROR:", e)
