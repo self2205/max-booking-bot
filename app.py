@@ -199,9 +199,6 @@ async def telegram_webhook(request: Request):
     if not message:
         return {"ok": True}
 
-    chat = message.get("chat", {})
-    chat_id = chat.get("id")
-
     text = message.get("text") or message.get("caption") or ""
 
     if not text and not message.get("photo"):
@@ -209,25 +206,9 @@ async def telegram_webhook(request: Request):
 
     product = text.strip() if text else "Товар"
 
-    # ==========================
-    # PHOTO URL (ВАЖНО)
-    # ==========================
-    photo_url = None
+    chat = message.get("chat", {})
+    chat_id = chat.get("id")
 
-    if message.get("photo"):
-        file_id = message["photo"][-1]["file_id"]
-
-        file_info = requests.get(
-            f"https://api.telegram.org/bot{TG_TOKEN}/getFile",
-            params={"file_id": file_id}
-        ).json()
-
-        file_path = file_info["result"]["file_path"]
-        photo_url = f"https://api.telegram.org/file/bot{TG_TOKEN}/{file_path}"
-
-    # ==========================
-    # LINK
-    # ==========================
     product_url = f"https://max.ru/se13456903_bot?start={urllib.parse.quote(product)}"
 
     reply_markup = json.dumps({
@@ -244,24 +225,23 @@ async def telegram_webhook(request: Request):
     try:
 
         # ==========================
-        # PHOTO POST (FIXED 100%)
+        # 📸 ВАЖНО: используем file_id (НЕ URL)
         # ==========================
-        if photo_url:
+        if message.get("photo"):
+
+            file_id = message["photo"][-1]["file_id"]
 
             resp = requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
                 data={
                     "chat_id": TG_CHANNEL_CHAT_ID,
-                    "photo": photo_url,
+                    "photo": file_id,
                     "caption": f"📦 {product}",
                     "reply_markup": reply_markup
                 },
-                timeout=10
+                timeout=15
             )
 
-        # ==========================
-        # TEXT POST
-        # ==========================
         else:
 
             resp = requests.post(
@@ -271,11 +251,11 @@ async def telegram_webhook(request: Request):
                     "text": f"📦 {product}",
                     "reply_markup": reply_markup
                 },
-                timeout=10
+                timeout=15
             )
 
         print("TG STATUS:", resp.status_code)
-        print("TG BODY:", resp.text)
+        print("TG RESPONSE:", resp.text)
 
     except Exception as e:
         print("TELEGRAM ERROR:", e)
