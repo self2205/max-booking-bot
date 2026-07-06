@@ -95,7 +95,7 @@ def book_page(product: str = ""):
 
 
 # ==========================
-# MAX WEBHOOK (ВАЖНО)
+# MAX WEBHOOK (FIXED)
 # ==========================
 @app.post("/webhook")
 async def webhook(request: Request):
@@ -112,7 +112,9 @@ async def webhook(request: Request):
     event_type = data.get("type")
     payload = data.get("payload", {})
 
-    # кнопка из MAX
+    # ==========================
+    # КНОПКИ ИЗ MAX
+    # ==========================
     if event_type == "message_callback":
         action = payload.get("action")
         product = payload.get("product")
@@ -131,16 +133,45 @@ async def webhook(request: Request):
 
     state = get_state(user_id)
 
+    # ==========================
+    # IMAGE
+    # ==========================
     image_url = None
     for a in body.get("attachments", []):
         if a.get("type") == "image":
             image_url = a.get("payload", {}).get("url")
 
-    if text == "/start":
+    # ==========================
+    # START (ГЛАВНЫЙ ФИКС)
+    # ==========================
+    if text.startswith("/start"):
+
+        parts = text.split(" ", 1)
+
+        # если есть товар в /start
+        if len(parts) > 1 and parts[1].strip():
+
+            product = parts[1].strip()
+
+            set_state(user_id, "WAIT_NAME", {
+                "product": product,
+                "image_url": image_url
+            })
+
+            send_message_max(
+                chat_id,
+                f"🟢 Бронирование:\n\n📦 {product}\n\n✍️ Введите ваше имя"
+            )
+            return {"ok": True}
+
+        # обычный старт
         set_state(user_id, "WAIT_PRODUCT", {})
         send_message_max(chat_id, "👋 Привет!\n\nЧто хотите забронировать?")
         return {"ok": True}
 
+    # ==========================
+    # PRODUCT STEP
+    # ==========================
     if state and state["state"] == "WAIT_PRODUCT":
         state["data"]["product"] = text
         state["data"]["image_url"] = image_url
@@ -149,6 +180,9 @@ async def webhook(request: Request):
         send_message_max(chat_id, "✍️ Введите ваше имя")
         return {"ok": True}
 
+    # ==========================
+    # NAME STEP
+    # ==========================
     if state and state["state"] == "WAIT_NAME":
         state["data"]["name"] = text
 
@@ -156,6 +190,9 @@ async def webhook(request: Request):
         send_message_max(chat_id, "📞 Введите телефон")
         return {"ok": True}
 
+    # ==========================
+    # PHONE STEP
+    # ==========================
     if state and state["state"] == "WAIT_PHONE":
         state["data"]["phone"] = text
 
@@ -179,7 +216,7 @@ async def webhook(request: Request):
 
 
 # ==========================
-# TELEGRAM WEBHOOK
+# TELEGRAM WEBHOOK (FIXED)
 # ==========================
 @app.post("/telegram-webhook")
 async def telegram_webhook(request: Request):
@@ -202,11 +239,14 @@ async def telegram_webhook(request: Request):
     if not text and not photo:
         return {"ok": True}
 
+    # чистим товар
     product = text.strip() if text else "Товар"
 
-    # 👉 ВАЖНО: ведём в /book (UI страница)
+    # ==========================
+    # ВАЖНО: ссылка В MAX БОТА
+    # ==========================
     product_url = (
-        "https://max-booking-bot-k3dx.onrender.com/book?product="
+        "https://max.ru/se13456903_bot?start="
         + urllib.parse.quote(product)
     )
 
@@ -234,7 +274,6 @@ async def telegram_webhook(request: Request):
                 },
                 timeout=10
             )
-
         else:
             requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
