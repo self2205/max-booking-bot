@@ -204,8 +204,13 @@ async def telegram_webhook(request: Request):
 
     text = message.get("text") or message.get("caption") or ""
 
+    if not text and not message.get("photo"):
+        return {"ok": True}
+
+    product = text.strip() if text else "Товар"
+
     # ==========================
-    # 📸 ДОСТАЁМ ФОТО (ВАЖНО)
+    # PHOTO URL
     # ==========================
     photo_url = None
 
@@ -218,21 +223,12 @@ async def telegram_webhook(request: Request):
         ).json()
 
         file_path = file_info["result"]["file_path"]
-
         photo_url = f"https://api.telegram.org/file/bot{TG_TOKEN}/{file_path}"
 
-    if not text and not photo_url:
-        return {"ok": True}
-
-    product = text.strip() if text else "Товар"
-
     # ==========================
-    # 🟢 ССЫЛКА В MAX (ВАЖНО)
+    # MAX LINK
     # ==========================
-    product_url = (
-        "https://max.ru/se13456903_bot?start="
-        + urllib.parse.quote(product)
-    )
+    product_url = f"https://max.ru/se13456903_bot?start={urllib.parse.quote(product)}"
 
     reply_markup = {
         "inline_keyboard": [
@@ -245,31 +241,33 @@ async def telegram_webhook(request: Request):
         ]
     }
 
+    telegram_api = f"https://api.telegram.org/bot{TG_TOKEN}"
+
     try:
 
         # ==========================
-        # 📸 ЕСЛИ ЕСТЬ ФОТО
+        # 📸 SEND PHOTO (FIX — DATA!)
         # ==========================
         if photo_url:
 
-            requests.post(
-                f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
-                json={
+            resp = requests.post(
+                f"{telegram_api}/sendPhoto",
+                data={
                     "chat_id": TG_CHANNEL_CHAT_ID,
                     "photo": photo_url,
                     "caption": f"📦 {product}",
-                    "reply_markup": reply_markup
+                    "reply_markup": json.dumps(reply_markup)
                 },
                 timeout=10
             )
 
         # ==========================
-        # 📝 ЕСЛИ ТОЛЬКО ТЕКСТ
+        # TEXT
         # ==========================
         else:
 
-            requests.post(
-                f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+            resp = requests.post(
+                f"{telegram_api}/sendMessage",
                 json={
                     "chat_id": TG_CHANNEL_CHAT_ID,
                     "text": f"📦 {product}",
@@ -277,6 +275,8 @@ async def telegram_webhook(request: Request):
                 },
                 timeout=10
             )
+
+        print("TG RESPONSE:", resp.status_code, resp.text)
 
     except Exception as e:
         print("TELEGRAM ERROR:", e)
