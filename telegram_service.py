@@ -10,9 +10,11 @@ ADMIN_TG_ID = 441725473
 # ОЧИСТКА ТОВАРА
 # ==========================
 def clean_product(text: str) -> str:
-    text = re.sub(r"[^\w\sа-яА-ЯёЁ0-9\-\+\.\,]", " ", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text[:300]
+
+    if not text:
+        return "Товар"
+
+    return text.strip()
 
 
 # ==========================
