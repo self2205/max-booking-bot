@@ -2,7 +2,7 @@ import requests
 import urllib.parse
 import re
 
-from config import TG_TOKEN, TG_CHAT_ID
+from config import TG_TOKEN, TG_CHAT_ID, TG_CHANNEL_CHAT_ID
 from database import change_status, get_bookings
 
 ADMIN_TG_ID = 441725473
@@ -25,7 +25,7 @@ def build_product_url(text: str):
 
 
 # ==========================
-# TELEGRAM SEND (ЗАЯВКИ MAX)
+# TELEGRAM SEND (ЗАЯВКИ MAX → ТЕБЕ)
 # ==========================
 def send_to_telegram(product, name, phone, image_url=None):
     try:
@@ -37,13 +37,10 @@ def send_to_telegram(product, name, phone, image_url=None):
 📞 Телефон: {phone}
 """
 
-        print("========== TELEGRAM ==========")
-
         if image_url:
-
             url = f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto"
 
-            response = requests.post(
+            requests.post(
                 url,
                 data={
                     "chat_id": TG_CHAT_ID,
@@ -54,10 +51,9 @@ def send_to_telegram(product, name, phone, image_url=None):
             )
 
         else:
-
             url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
 
-            response = requests.post(
+            requests.post(
                 url,
                 data={
                     "chat_id": TG_CHAT_ID,
@@ -66,12 +62,43 @@ def send_to_telegram(product, name, phone, image_url=None):
                 timeout=15
             )
 
-        print("Status:", response.status_code)
-        print("Response:", response.text)
-        print("==============================")
-
     except Exception as e:
         print("Telegram error:", e)
+
+
+# ==========================
+# НОВОЕ: ОТПРАВКА В КАНАЛ
+# ==========================
+def send_to_channel(product):
+    try:
+
+        product = clean_product(product)
+
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+
+        reply_markup = {
+            "inline_keyboard": [
+                [
+                    {
+                        "text": "🟢 Забронировать",
+                        "url": build_product_url(product)
+                    }
+                ]
+            ]
+        }
+
+        requests.post(
+            url,
+            data={
+                "chat_id": TG_CHANNEL_CHAT_ID,
+                "text": f"📦 {product}",
+                "reply_markup": reply_markup
+            },
+            timeout=15
+        )
+
+    except Exception as e:
+        print("Channel error:", e)
 
 
 # ==========================
@@ -120,19 +147,22 @@ def handle_post_generator(message, send_func):
         return False
 
     product = clean_product(text)
-    url = build_product_url(text)
+
+    # 👉 ВАЖНО: теперь отправляем В КАНАЛ
+    send_to_channel(product)
 
     reply_markup = {
         "inline_keyboard": [
             [
                 {
                     "text": "🟢 Забронировать",
-                    "url": url
+                    "url": build_product_url(product)
                 }
             ]
         ]
     }
 
+    # (если хочешь — можешь оставить отправку в бота)
     send_func(
         f"📦 {product}",
         reply_markup=reply_markup
@@ -146,9 +176,7 @@ def handle_post_generator(message, send_func):
 # ==========================
 def handle_message(message, send_func):
 
-    # 1. админ команды (всегда проверяем)
     handle_admin_commands(message, send_func)
 
-    # 2. генератор постов
     if handle_post_generator(message, send_func):
         return
