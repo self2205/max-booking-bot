@@ -15,7 +15,7 @@ FASTAPI_URL = "https://max-booking-bot-k3dx.onrender.com/webhook/book"
 def send_to_telegram(product, name, phone, image_url=None):
     try:
 
-        text = f"""📦 НОВАЯ ЗАЯВКА
+        text = f"""📦 НОВАЯ ЗАЯВКА НА БРОНИРОВАНИЕ
 
 🛍 Товар: {product}
 👤 Имя: {name}
