@@ -242,12 +242,14 @@ async def telegram_webhook(request: Request):
     # чистим товар
     product = text.strip() if text else "Товар"
 
-    # ==========================
+       # ==========================
     # ВАЖНО: ссылка В MAX БОТА
     # ==========================
+
+    start_param = urllib.parse.quote(f"product_{product}")
+
     product_url = (
-        "https://max.ru/se13456903_bot?start="
-        + urllib.parse.quote(product)
+        f"https://max.ru/se13456903_bot?start={start_param}"
     )
 
     reply_markup = {
