@@ -2,14 +2,12 @@ import requests
 from config import TG_TOKEN, TG_CHAT_ID
 from database import change_status, get_bookings
 
-ADMIN_TG_ID = 441725473  # твой Telegram ID
+ADMIN_TG_ID = 441725473
 
 
-# =========================
-# ОТПРАВКА ЗАЯВКИ (ТЕКСТ + КАРТИНКА)
-# =========================
 def send_to_telegram(product, name, phone, image_url=None):
     try:
+
         text = f"""📦 НОВАЯ ЗАЯВКА
 
 🛍 Товар: {product}
@@ -19,8 +17,8 @@ def send_to_telegram(product, name, phone, image_url=None):
 
         print("========== TELEGRAM ==========")
 
-        # 📸 ЕСЛИ ЕСТЬ КАРТИНКА
         if image_url:
+
             url = f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto"
 
             response = requests.post(
@@ -30,11 +28,11 @@ def send_to_telegram(product, name, phone, image_url=None):
                     "photo": image_url,
                     "caption": text
                 },
-                timeout=10
+                timeout=15
             )
 
-        # 📝 ЕСЛИ КАРТИНКИ НЕТ
         else:
+
             url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
 
             response = requests.post(
@@ -43,7 +41,7 @@ def send_to_telegram(product, name, phone, image_url=None):
                     "chat_id": TG_CHAT_ID,
                     "text": text
                 },
-                timeout=10
+                timeout=15
             )
 
         print("Status:", response.status_code)
@@ -54,26 +52,16 @@ def send_to_telegram(product, name, phone, image_url=None):
         print("Telegram error:", e)
 
 
-# =========================
-# АДМИН КОМАНДЫ В TELEGRAM
-# =========================
 def handle_admin_commands(message, send_func):
-    """
-    /status 12
-    /list
-    """
 
     text = message.get("text", "")
     user_id = message.get("from", {}).get("id")
 
-    # защита
     if user_id != ADMIN_TG_ID:
         return
 
-    # ----------------------
-    # /status ID
-    # ----------------------
     if text.startswith("/status"):
+
         try:
             booking_id = int(text.split()[1])
         except:
@@ -81,18 +69,18 @@ def handle_admin_commands(message, send_func):
             return
 
         change_status(booking_id)
+
         send_func(f"✅ Статус заявки #{booking_id} обновлён")
+
         return
 
-    # ----------------------
-    # /list
-    # ----------------------
     if text == "/list":
+
         rows = get_bookings()
 
         msg = "📋 Заявки:\n\n"
 
         for r in rows[:10]:
-            msg += f"#{r[0]} | {r[1]} | {r[4]}\n"
+            msg += f"#{r['id']} | {r['product']} | {r['status']}\n"
 
         send_func(msg)
