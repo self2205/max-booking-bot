@@ -12,7 +12,8 @@ def create_booking(product, name, phone, image_url=None):
     booking_id = save_booking(
         product=product,
         name=name,
-        phone=phone
+        phone=phone,
+        image_url=image_url
     )
 
     send_to_telegram(
