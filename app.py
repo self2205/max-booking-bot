@@ -16,8 +16,14 @@ from states import get_state, set_state, clear_state
 
 app = FastAPI()
 
+# ==========================
+# INIT DATABASE
+# ==========================
 init_db()
 
+# ==========================
+# AUTH
+# ==========================
 security = HTTPBasic()
 
 
@@ -35,17 +41,26 @@ def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
     return True
 
 
+# ==========================
+# MODEL
+# ==========================
 class Booking(BaseModel):
     product: str
     name: str
     phone: str
 
 
+# ==========================
+# ROOT
+# ==========================
 @app.get("/")
 def root():
     return {"status": "ok", "service": "MAX Booking Bot"}
 
 
+# ==========================
+# BOOKING API
+# ==========================
 @app.post("/booking")
 def booking(data: Booking):
 
@@ -58,18 +73,38 @@ def booking(data: Booking):
     return {"success": True, "booking_id": booking_id}
 
 
-@app.get("/debug/subscriptions")
-def debug_subscriptions():
-    r = requests.get(
-        "https://platform-api2.max.ru/subscriptions",
-        headers={"Authorization": MAX_TOKEN},
-        verify=False
-    )
+# ==========================
+# PAGE ДЛЯ КНОПКИ (ВАЖНО)
+# ==========================
+@app.get("/book")
+def book_page(product: str = ""):
 
-    return {
-        "status": r.status_code,
-        "data": r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
-    }
+    html = f"""
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Бронирование</title>
+    </head>
+
+    <body style="font-family: Arial; text-align:center; padding-top:80px;">
+
+        <h2>📦 Бронирование товара</h2>
+
+        <h3>{product}</h3>
+
+        <p>Нажмите кнопку ниже, чтобы оформить бронь в MAX</p>
+
+        <a href="https://max-booking-bot-k3dx.onrender.com/webhook/book?product={urllib.parse.quote(product)}"
+           style="display:inline-block;padding:15px 25px;background:green;color:white;
+           text-decoration:none;border-radius:10px;font-size:18px;">
+           🟢 Забронировать в MAX
+        </a>
+
+    </body>
+    </html>
+    """
+
+    return HTMLResponse(content=html)
 
 
 # ==========================
@@ -163,10 +198,6 @@ async def telegram_webhook(request: Request):
 
     data = await request.json()
 
-    print("========== TELEGRAM UPDATE ==========")
-    print(data)
-    print("======================================")
-
     message = data.get("message")
     if not message:
         return {"ok": True}
@@ -185,9 +216,9 @@ async def telegram_webhook(request: Request):
 
     product = text.strip() if text else "Товар"
 
-    # ✅ ВАЖНО: правильный endpoint (у тебя есть /booking POST)
+    # ✅ ВАЖНО: теперь ведём в /book (НЕ API)
     product_url = (
-        "https://max-booking-bot-k3dx.onrender.com/booking?product="
+        "https://max-booking-bot-k3dx.onrender.com/book?product="
         + urllib.parse.quote(product)
     )
 
@@ -204,10 +235,9 @@ async def telegram_webhook(request: Request):
 
     try:
 
-        # 📸 ЕСЛИ ЕСТЬ ФОТО
         if photo:
 
-            resp = requests.post(
+            requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
                 json={
                     "chat_id": TG_CHANNEL_CHAT_ID,
@@ -218,10 +248,9 @@ async def telegram_webhook(request: Request):
                 timeout=10
             )
 
-        # 📝 ЕСЛИ ТОЛЬКО ТЕКСТ
         else:
 
-            resp = requests.post(
+            requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
                 json={
                     "chat_id": TG_CHANNEL_CHAT_ID,
@@ -231,13 +260,8 @@ async def telegram_webhook(request: Request):
                 timeout=10
             )
 
-        print("========== TELEGRAM RESPONSE ==========")
-        print("STATUS:", resp.status_code)
-        print("BODY:", resp.text)
-        print("=======================================")
-
     except Exception as e:
-        print("TELEGRAM ERROR:", str(e))
+        print("TELEGRAM ERROR:", e)
 
     return {"ok": True}
 # ==========================
