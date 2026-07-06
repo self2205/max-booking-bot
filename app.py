@@ -75,7 +75,7 @@ async def webhook(request: Request):
     update_type = data.get("update_type")
 
     # ==========================
-    # BOT STARTED
+    # BOT STARTED (FIXED PARSER 100%)
     # ==========================
     if update_type == "bot_started":
 
@@ -83,31 +83,28 @@ async def webhook(request: Request):
         chat_id = data.get("chat_id")
         payload = data.get("payload", "")
 
-        print("PAYLOAD:", payload)
+        print("RAW PAYLOAD:", payload)
 
         product = None
 
-        # ==========================
-        # FIXED PARSER (100%)
-        # ==========================
+        # 🔥 FIXED PARSER (СТАБИЛЬНЫЙ 100%)
         if payload:
 
-            # убираем product_
-            def extract_product(payload: str):
-    if not payload:
-        return None
+            payload = str(payload).strip()
 
-    payload = payload.strip()
+            # 1. убираем prefix product_
+            if payload.startswith("product_"):
+                payload = payload.replace("product_", "", 1)
 
-    # убираем возможный prefix
-    if "product_" in payload:
-        payload = payload.split("product_", 1)[1]
+            # 2. чистим переносы (MAX часто кидает пост целиком)
+            lines = [l.strip() for l in payload.split("\n") if l.strip()]
+            payload = "\n".join(lines).strip()
 
-    # чистим переносы
-    lines = [l.strip() for l in payload.split("\n") if l.strip()]
+            product = payload if payload else None
 
-    return "\n".join(lines).strip()
-
+        # ==========================
+        # RESULT
+        # ==========================
         if product:
 
             set_state(user_id, "WAIT_NAME", {
@@ -149,23 +146,35 @@ async def webhook(request: Request):
 
     state = get_state(user_id)
 
+    # ==========================
+    # START
+    # ==========================
     if text == "/start":
         set_state(user_id, "WAIT_PRODUCT", {})
         send_message_max(chat_id, "👋 Привет!\n\nЧто хотите забронировать?")
         return {"ok": True}
 
+    # ==========================
+    # PRODUCT
+    # ==========================
     if state and state["state"] == "WAIT_PRODUCT":
         state["data"]["product"] = text
         set_state(user_id, "WAIT_NAME", state["data"])
         send_message_max(chat_id, "✍️ Введите ваше имя")
         return {"ok": True}
 
+    # ==========================
+    # NAME
+    # ==========================
     if state and state["state"] == "WAIT_NAME":
         state["data"]["name"] = text
         set_state(user_id, "WAIT_PHONE", state["data"])
         send_message_max(chat_id, "📞 Введите телефон")
         return {"ok": True}
 
+    # ==========================
+    # PHONE → CREATE BOOKING
+    # ==========================
     if state and state["state"] == "WAIT_PHONE":
         state["data"]["phone"] = text
 
@@ -206,35 +215,22 @@ async def telegram_webhook(request: Request):
 
     photo = message.get("photo")
 
-    # ==========================
-    # FIX: full product
-    # ==========================
-    product = extract_product(payload)
+    product_raw = caption if caption else text
+    product = extract_product(product_raw)
 
     if not product:
         product = "Товар"
 
-    # ==========================
-    # MAX LINK SAFE
-    # ==========================
     product_url = f"https://max.ru/se13456903_bot?start=product_{urllib.parse.quote(product)}"
 
     reply_markup = json.dumps({
         "inline_keyboard": [
-            [
-                {
-                    "text": "🟢 Забронировать",
-                    "url": product_url
-                }
-            ]
+            [{"text": "🟢 Забронировать", "url": product_url}]
         ]
     })
 
     try:
 
-        # ==========================
-        # PHOTO FIX (REAL SAFE)
-        # ==========================
         if photo:
 
             file_id = photo[-1]["file_id"]
