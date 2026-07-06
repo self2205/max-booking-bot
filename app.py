@@ -5,6 +5,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 
 import secrets
+import requests
 
 from config import *
 from database import init_db, get_bookings, change_status
@@ -83,6 +84,18 @@ def booking(data: Booking):
         "booking_id": booking_id
     }
 
+@app.get("/debug/subscriptions")
+def debug_subscriptions():
+    r = requests.get(
+        "https://platform-api2.max.ru/subscriptions",
+        headers={"Authorization": MAX_TOKEN},
+        verify=False
+    )
+
+    return {
+        "status": r.status_code,
+        "data": r.json() if r.headers.get("content-type","").startswith("application/json") else r.text
+    }
 
 # ==========================
 # WEBHOOK MAX
