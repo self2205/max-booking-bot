@@ -220,22 +220,11 @@ async def telegram_webhook(request: Request):
 
     text = message.get("text") or message.get("caption") or ""
 
-    photo_url = None
-
-    # 📸 получаем РЕАЛЬНУЮ ссылку на фото
+    photo_file_id = None
     if message.get("photo"):
-        file_id = message["photo"][-1]["file_id"]
+        photo_file_id = message["photo"][-1]["file_id"]
 
-        file_info = requests.get(
-            f"https://api.telegram.org/bot{TG_TOKEN}/getFile",
-            params={"file_id": file_id}
-        ).json()
-
-        file_path = file_info["result"]["file_path"]
-
-        photo_url = f"https://api.telegram.org/file/bot{TG_TOKEN}/{file_path}"
-
-    if not text and not photo_url:
+    if not text and not photo_file_id:
         return {"ok": True}
 
     product = text.strip() if text else "Товар"
@@ -245,7 +234,7 @@ async def telegram_webhook(request: Request):
         + urllib.parse.quote(f"product_{product}")
     )
 
-    reply_markup = {
+    reply_markup = json.dumps({
         "inline_keyboard": [
             [
                 {
@@ -254,41 +243,42 @@ async def telegram_webhook(request: Request):
                 }
             ]
         ]
-    }
+    }, ensure_ascii=False)
 
     try:
 
-        # 📦 В КАНАЛ
-        if photo_url:
-            requests.post(
+        # 📸 PHOTO POST (СТАБИЛЬНЫЙ ВАРИАНТ)
+        if photo_file_id:
+
+            resp = requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
                 data={
                     "chat_id": TG_CHANNEL_CHAT_ID,
-                    "photo": photo_url,
+                    "photo": photo_file_id,
                     "caption": f"📦 {product}",
-                    "reply_markup": json.dumps(reply_markup, ensure_ascii=False)
-                }
+                    "reply_markup": reply_markup
+                },
+                timeout=10
             )
+
+        # 📝 TEXT POST
         else:
-            requests.post(
+
+            resp = requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
                 data={
                     "chat_id": TG_CHANNEL_CHAT_ID,
                     "text": f"📦 {product}",
-                    "reply_markup": json.dumps(reply_markup, ensure_ascii=False)
-                }
+                    "reply_markup": reply_markup
+                },
+                timeout=10
             )
+
+        print("STATUS:", resp.status_code)
+        print("BODY:", resp.text)
 
     except Exception as e:
         print("TELEGRAM ERROR:", e)
-
-    # ✅ ВАЖНО: ПЕРЕДАЁМ В MAX ЗАЯВКУ
-    create_booking(
-        product=product,
-        name="—",
-        phone="—",
-        image_url=photo_url   # 🔥 ВОТ ЭТО КЛЮЧЕВО
-    )
 
     return {"ok": True}
 # ==========================
