@@ -1,5 +1,6 @@
 import requests
 import urllib.parse
+import re
 
 from config import TG_TOKEN, TG_CHAT_ID
 from database import change_status, get_bookings
@@ -7,6 +8,20 @@ from database import change_status, get_bookings
 ADMIN_TG_ID = 441725473
 
 FASTAPI_URL = "https://max-booking-bot-k3dx.onrender.com/webhook/book"
+
+
+# ==========================
+# ОЧИСТКА ТОВАРА
+# ==========================
+def clean_product(text: str) -> str:
+    text = re.sub(r"[^\w\sа-яА-ЯёЁ0-9\-\+\.\,]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:80]
+
+
+def build_product_url(text: str):
+    product = clean_product(text)
+    return f"{FASTAPI_URL}?product={urllib.parse.quote(product)}"
 
 
 # ==========================
@@ -79,14 +94,12 @@ def handle_admin_commands(message, send_func):
             return
 
         change_status(booking_id)
-
         send_func(f"✅ Статус заявки #{booking_id} обновлён")
         return
 
     if text == "/list":
 
         rows = get_bookings()
-
         msg = "📋 Заявки:\n\n"
 
         for r in rows[:10]:
@@ -97,12 +110,8 @@ def handle_admin_commands(message, send_func):
 
 
 # ==========================
-# POST GENERATOR (НОВАЯ ФУНКЦИЯ)
+# POST GENERATOR
 # ==========================
-def build_product_url(product: str):
-    return f"{FASTAPI_URL}?product={urllib.parse.quote(product)}"
-
-
 def handle_post_generator(message, send_func):
 
     text = message.get("text", "").strip()
@@ -110,21 +119,22 @@ def handle_post_generator(message, send_func):
     if not text or text.startswith("/"):
         return False
 
-    product_url = build_product_url(text)
+    product = clean_product(text)
+    url = build_product_url(text)
 
     reply_markup = {
         "inline_keyboard": [
             [
                 {
                     "text": "🟢 Забронировать",
-                    "url": product_url
+                    "url": url
                 }
             ]
         ]
     }
 
     send_func(
-        f"📦 {text}",
+        f"📦 {product}",
         reply_markup=reply_markup
     )
 
@@ -136,13 +146,9 @@ def handle_post_generator(message, send_func):
 # ==========================
 def handle_message(message, send_func):
 
-    # 1. заявки из MAX (не трогаем)
-    if message.get("from", {}).get("id") != ADMIN_TG_ID:
-        pass
-
-    # 2. админ команды
+    # 1. админ команды (всегда проверяем)
     handle_admin_commands(message, send_func)
 
-    # 3. генератор постов
+    # 2. генератор постов
     if handle_post_generator(message, send_func):
         return
