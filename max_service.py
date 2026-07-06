@@ -55,26 +55,31 @@ def send_message_max(chat_id, text):
 # =========================
 # ПОЛУЧИТЬ СООБЩЕНИЕ
 # =========================
-def get_max_message(mid):
-    url = f"{API_URL}/messages/{mid}"
+def send_message_max(chat_id, text):
+    url = f"{API_URL}/messages?chat_id={chat_id}"
 
     headers = {
-        "Authorization": MAX_TOKEN
+        "Authorization": MAX_TOKEN,
+        "Content-Type": "application/json"
     }
 
-    r = requests.get(
+    payload = {
+        "text": text
+    }
+
+    r = requests.post(
         url,
         headers=headers,
+        json=payload,
         timeout=15,
         verify=False
     )
 
-    print(r.text)
+    print("URL:", url)
+    print("STATUS:", r.status_code)
+    print("BODY:", r.text)
 
-    try:
-        return r.json()
-    except:
-        return {}
+    return r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
 
 
 # =========================
