@@ -18,58 +18,62 @@ def send_message_max(chat_id, text):
         "Content-Type": "application/json"
     }
 
-    params = {
-        "chat_id": chat_id
-    }
-
     payload = {
-        "text": text
+        "recipient": {
+            "chat_id": chat_id
+        },
+        "body": {
+            "text": text
+        }
     }
 
-    r = requests.post(
-        url,
-        headers=headers,
-        params=params,
-        json=payload,
-        timeout=15,
-        verify=False
-    )
+    try:
+        r = requests.post(
+            url,
+            json=payload,
+            headers=headers,
+            timeout=15,
+            verify=False
+        )
 
-    print("URL:", r.request.url)
-    print("STATUS:", r.status_code)
-    print("BODY:", r.text)
+        print("========== SEND TO MAX ==========")
+        print("STATUS:", r.status_code)
+        print("BODY:", r.text)
+        print("=================================")
 
-    return r.json() if "application/json" in r.headers.get("Content-Type", "") else {}
+        try:
+            return r.json()
+        except Exception:
+            return {}
+
+    except Exception as e:
+        print("MAX ERROR:", e)
+        return {}
 
 
 # =========================
 # ПОЛУЧИТЬ СООБЩЕНИЕ
 # =========================
-def send_message_max(chat_id, text):
-    url = f"{API_URL}/messages?chat_id={chat_id}"
+def get_max_message(mid):
+    url = f"{API_URL}/messages/{mid}"
 
     headers = {
-        "Authorization": MAX_TOKEN,
-        "Content-Type": "application/json"
+        "Authorization": MAX_TOKEN
     }
 
-    payload = {
-        "text": text
-    }
-
-    r = requests.post(
+    r = requests.get(
         url,
         headers=headers,
-        json=payload,
         timeout=15,
         verify=False
     )
 
-    print("URL:", url)
-    print("STATUS:", r.status_code)
-    print("BODY:", r.text)
+    print(r.text)
 
-    return r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+    try:
+        return r.json()
+    except Exception:
+        return {}
 
 
 # =========================
