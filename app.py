@@ -4,32 +4,38 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 
 import secrets
-import requests
 import urllib.parse
-import json
 import base64
-
+import json
+import requests
 
 from config import *
 from database import init_db, get_bookings
 from booking_service import create_booking
-from max_service import send_message_max, extract_image_from_webhook
+from max_service import send_message_max, extract_image
 from states import get_state, set_state, clear_state
 
 
 app = FastAPI()
 
+
+# ==========================
+# DATABASE INIT
+# ==========================
+
 init_db()
-
-
-security = HTTPBasic()
 
 
 # ==========================
 # ADMIN AUTH
 # ==========================
 
-def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
+security = HTTPBasic()
+
+
+def check_auth(
+    credentials: HTTPBasicCredentials = Depends(security)
+):
 
     login_ok = secrets.compare_digest(
         credentials.username,
@@ -49,84 +55,15 @@ def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
             detail="Wrong login",
             headers={
                 "WWW-Authenticate": "Basic"
-            },
+            }
         )
-
 
     return True
 
 
 
 # ==========================
-# ENCODE / DECODE PRODUCT
-# ==========================
-
-def encode_product(product):
-
-    encoded = base64.b64encode(
-        product.encode("utf-8")
-    ).decode("utf-8")
-
-
-    return "p_" + encoded
-
-
-
-def decode_product(payload):
-
-    try:
-
-        if payload.startswith("p_"):
-            payload = payload[2:]
-
-
-        decoded = base64.b64decode(
-            payload
-        ).decode("utf-8")
-
-
-        return decoded
-
-
-    except Exception as e:
-
-        print(
-            "DECODE ERROR:",
-            e
-        )
-
-        return None
-
-
-
-# ==========================
-# CLEAN PRODUCT
-# ==========================
-
-def extract_product(text):
-
-    if not text:
-        return None
-
-
-    text = str(text).strip()
-
-
-    lines = [
-        line.strip()
-        for line in text.split("\n")
-        if line.strip()
-    ]
-
-
-    return "\n".join(lines)
-
-
-
-
-
-# ==========================
-# MODEL
+# BOOKING MODEL
 # ==========================
 
 class Booking(BaseModel):
@@ -138,7 +75,7 @@ class Booking(BaseModel):
 
 
 # ==========================
-# HOME
+# ROOT
 # ==========================
 
 @app.get("/")
@@ -169,10 +106,52 @@ def booking(data: Booking):
         "success": True,
         "booking_id": booking_id
     }
-    # ==========================
-# MAX WEBHOOK
+
+
+
+# ==========================
+# ENCODE / DECODE PRODUCT
 # ==========================
 
+def encode_payload(data: dict):
+
+    json_data = json.dumps(
+        data,
+        ensure_ascii=False
+    )
+
+    encoded = base64.urlsafe_b64encode(
+        json_data.encode("utf-8")
+    ).decode("utf-8")
+
+
+    return encoded
+
+
+
+def decode_payload(payload):
+
+    try:
+
+        decoded = base64.urlsafe_b64decode(
+            payload.encode("utf-8")
+        )
+
+        return json.loads(
+            decoded.decode("utf-8")
+        )
+
+    except Exception as e:
+
+        print("DECODE ERROR:", e)
+
+        return {}
+
+
+
+# ==========================
+# MAX WEBHOOK
+# ==========================
 @app.post("/webhook")
 async def webhook(request: Request):
 
@@ -180,90 +159,56 @@ async def webhook(request: Request):
 
 
     print("\n========== MAX WEBHOOK ==========")
-    print(json.dumps(data, indent=2, ensure_ascii=False))
+    print(json.dumps(data, ensure_ascii=False, indent=2))
     print("=================================\n")
-
 
 
     update_type = data.get("update_type")
 
 
 
-    # ==================================
-    # BOT STARTED (НАЖАТИЕ КНОПКИ)
-    # ==================================
+    # ==========================
+    # ЧЕЛОВЕК ОТКРЫЛ БОТА ПО КНОПКЕ
+    # ==========================
 
     if update_type == "bot_started":
 
 
         user_id = data.get("user_id")
-
         chat_id = data.get("chat_id")
 
         payload = data.get("payload", "")
 
 
-
-        print(
-            "RAW PAYLOAD:",
-            payload
-        )
+        print("RAW START PAYLOAD:")
+        print(payload)
 
 
 
-        product = None
+        info = decode_payload(payload)
+
+
+        print("DECODED DATA:")
+        print(info)
 
 
 
-        # новая система p_ BASE64
-
-        if payload.startswith("p_"):
-
-            product = decode_product(payload)
-
-
-
-        # старый вариант product_
-
-        elif payload.startswith("product_"):
-
-            product = payload.replace(
-                "product_",
-                "",
-                1
-            )
-
-
-
-        else:
-
-            product = payload
-
-
-
-        product = extract_product(product)
-
-
-
-        print(
-            "FINAL PRODUCT:",
-            product
-        )
+        product = info.get("product")
+        image_url = info.get("image_url")
 
 
 
         if product:
 
 
-
             set_state(
                 user_id,
                 "WAIT_NAME",
                 {
-                    "product": product
+                    "product": product,
+                    "image_url": image_url
                 }
             )
-
 
 
             send_message_max(
@@ -271,13 +216,12 @@ async def webhook(request: Request):
                 f"""
 🟢 Бронирование
 
-📦 {product}
-
+📦 Товар:
+{product}
 
 ✍️ Введите ваше имя
 """
             )
-
 
 
         else:
@@ -290,16 +234,10 @@ async def webhook(request: Request):
             )
 
 
-
             send_message_max(
                 chat_id,
-                """
-👋 Привет!
-
-Что хотите забронировать?
-"""
+                "👋 Привет!\n\nЧто хотите забронировать?"
             )
-
 
 
         return {
@@ -309,11 +247,9 @@ async def webhook(request: Request):
 
 
 
-
-
-    # ==================================
-    # MESSAGE CREATED
-    # ==================================
+    # ==========================
+    # ОБЫЧНОЕ СООБЩЕНИЕ
+    # ==========================
 
     if update_type != "message_created":
 
@@ -329,18 +265,19 @@ async def webhook(request: Request):
     )
 
 
-
-    chat_id = (
-        message
-        .get("recipient", {})
-        .get("chat_id")
+    chat_id = message.get(
+        "recipient",
+        {}
+    ).get(
+        "chat_id"
     )
 
 
-    user_id = (
-        message
-        .get("sender", {})
-        .get("user_id")
+    user_id = message.get(
+        "sender",
+        {}
+    ).get(
+        "user_id"
     )
 
 
@@ -351,11 +288,10 @@ async def webhook(request: Request):
     )
 
 
-
     text = body.get(
         "text",
         ""
-    ).strip()
+    )
 
 
 
@@ -367,10 +303,7 @@ async def webhook(request: Request):
 
 
 
-
     state = get_state(user_id)
-
-
 
 
 
@@ -390,11 +323,7 @@ async def webhook(request: Request):
 
         send_message_max(
             chat_id,
-            """
-👋 Привет!
-
-Что хотите забронировать?
-"""
+            "👋 Привет!\n\nЧто хотите забронировать?"
         )
 
 
@@ -405,10 +334,8 @@ async def webhook(request: Request):
 
 
 
-
-
     # ==========================
-    # PRODUCT
+    # ВВОД ТОВАРА ВРУЧНУЮ
     # ==========================
 
     if state and state["state"] == "WAIT_PRODUCT":
@@ -424,7 +351,6 @@ async def webhook(request: Request):
         )
 
 
-
         send_message_max(
             chat_id,
             "✍️ Введите ваше имя"
@@ -435,20 +361,21 @@ async def webhook(request: Request):
             "ok": True
         }
 
-
-
+ id="4c8v7k"
+        return {
+            "ok": True
+        }
 
 
 
     # ==========================
-    # NAME
+    # ИМЯ
     # ==========================
 
     if state and state["state"] == "WAIT_NAME":
 
 
         state["data"]["name"] = text
-
 
 
         set_state(
@@ -458,10 +385,9 @@ async def webhook(request: Request):
         )
 
 
-
         send_message_max(
             chat_id,
-            "📞 Введите телефон"
+            "📞 Введите ваш телефон"
         )
 
 
@@ -472,11 +398,8 @@ async def webhook(request: Request):
 
 
 
-
-
-
     # ==========================
-    # PHONE
+    # ТЕЛЕФОН
     # ==========================
 
     if state and state["state"] == "WAIT_PHONE":
@@ -487,6 +410,7 @@ async def webhook(request: Request):
 
 
         booking_id = create_booking(
+
             product=state["data"].get(
                 "product"
             ),
@@ -515,10 +439,10 @@ async def webhook(request: Request):
             f"""
 ✅ Заявка создана!
 
-ID: {booking_id}
+Номер:
+#{booking_id}
 """
         )
-
 
 
         return {
@@ -530,23 +454,25 @@ ID: {booking_id}
     return {
         "ok": True
     }
-    # ==========================
+
+
+
+
+# ==========================
 # TELEGRAM WEBHOOK
 # ==========================
 
 @app.post("/telegram-webhook")
 async def telegram_webhook(request: Request):
 
+
     data = await request.json()
 
 
-    print("\n========== TELEGRAM ==========")
-    print(json.dumps(data, indent=2, ensure_ascii=False))
-    print("==============================\n")
 
-
-
-    message = data.get("message")
+    message = data.get(
+        "message"
+    )
 
 
     if not message:
@@ -554,18 +480,6 @@ async def telegram_webhook(request: Request):
         return {
             "ok": True
         }
-
-
-
-    chat = message.get(
-        "chat",
-        {}
-    )
-
-
-    chat_id = chat.get(
-        "id"
-    )
 
 
 
@@ -581,29 +495,16 @@ async def telegram_webhook(request: Request):
     )
 
 
-
     photo = message.get(
         "photo"
     )
 
 
 
+    # если есть подпись к фото
+    # берем её, иначе текст
 
-    # ==========================
-    # СОБИРАЕМ ТОВАР
-    # ==========================
-
-    product_raw = (
-        caption
-        if caption
-        else text
-    )
-
-
-
-    product = extract_product(
-        product_raw
-    )
+    product = caption if caption else text
 
 
 
@@ -613,34 +514,74 @@ async def telegram_webhook(request: Request):
 
 
 
-    print(
-        "POST PRODUCT:",
-        product
-    )
+    # ==========================
+    # ПОЛУЧАЕМ КАРТИНКУ
+    # ==========================
+
+    image_url = None
+
+
+    if photo:
+
+        try:
+
+            file_id = photo[-1]["file_id"]
+
+
+            r = requests.get(
+                f"https://api.telegram.org/bot{TG_TOKEN}/getFile",
+                params={
+                    "file_id": file_id
+                },
+                timeout=10
+            )
+
+
+            result = r.json()
+
+
+            path = result["result"]["file_path"]
+
+
+            image_url = (
+                f"https://api.telegram.org/file/"
+                f"bot{TG_TOKEN}/{path}"
+            )
+
+
+        except Exception as e:
+
+            print(
+                "PHOTO ERROR:",
+                e
+            )
 
 
 
 
     # ==========================
-    # КОДИРУЕМ ДЛЯ MAX
+    # ДАННЫЕ ДЛЯ MAX
     # ==========================
 
-    encoded = encode_product(
-        product
+    payload = encode_payload(
+        {
+            "product": product,
+            "image_url": image_url
+        }
     )
 
 
 
-    product_url = (
-        "https://max.ru/se13456903_bot"
+    max_url = (
+        "https://max.ru/"
+        "se13456903_bot"
         "?start="
-        + encoded
+        + payload
     )
 
 
 
-
-    reply_markup = json.dumps({
+    reply_markup = {
 
         "inline_keyboard": [
 
@@ -648,54 +589,41 @@ async def telegram_webhook(request: Request):
 
                 {
                     "text": "🟢 Забронировать",
-
-                    "url": product_url
+                    "url": max_url
                 }
 
             ]
 
         ]
 
-    })
+    }
 
 
 
+    # ==========================
+    # ОТПРАВКА В TELEGRAM КАНАЛ
+    # ==========================
 
 
     try:
 
 
-        # ==========================
-        # ЕСЛИ ЕСТЬ ФОТО
-        # ==========================
-
         if photo:
 
 
-            file_id = photo[-1]["file_id"]
-
-
-
-            resp = requests.post(
+            requests.post(
 
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
 
-                data={
+                json={
 
-                    "chat_id":
-                    TG_CHANNEL_CHAT_ID,
+                    "chat_id": TG_CHANNEL_CHAT_ID,
 
+                    "photo": image_url,
 
-                    "photo":
-                    file_id,
+                    "caption": f"📦 {product}",
 
-
-                    "caption":
-                    product,
-
-
-                    "reply_markup":
-                    reply_markup
+                    "reply_markup": reply_markup
 
                 },
 
@@ -703,51 +631,27 @@ async def telegram_webhook(request: Request):
 
             )
 
-
-
-
-        # ==========================
-        # ЕСЛИ ТОЛЬКО ТЕКСТ
-        # ==========================
 
         else:
 
 
-            resp = requests.post(
+            requests.post(
 
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
 
-                data={
+                json={
 
-                    "chat_id":
-                    TG_CHANNEL_CHAT_ID,
+                    "chat_id": TG_CHANNEL_CHAT_ID,
 
+                    "text": f"📦 {product}",
 
-                    "text":
-                    product,
-
-
-                    "reply_markup":
-                    reply_markup
+                    "reply_markup": reply_markup
 
                 },
 
                 timeout=15
 
             )
-
-
-
-
-        print(
-            "TG STATUS:",
-            resp.status_code
-        )
-
-        print(
-            resp.text
-        )
-
 
 
 
@@ -755,7 +659,7 @@ async def telegram_webhook(request: Request):
 
 
         print(
-            "TELEGRAM ERROR:",
+            "CHANNEL ERROR:",
             e
         )
 
@@ -782,7 +686,6 @@ def admin(
 
 
     html = """
-
 <!DOCTYPE html>
 
 <html lang="ru">
@@ -824,9 +727,7 @@ th {
 
     color:white;
 
-    padding:12px;
-
-    text-align:left;
+    padding:10px;
 
 }
 
@@ -840,19 +741,26 @@ td {
 }
 
 
+img {
+
+    width:100px;
+
+    border-radius:8px;
+
+}
+
+
 </style>
 
 
 </head>
 
 
-
 <body>
 
 
-
 <h2>
-📋 Заявки магазина
+📋 Заявки на бронирование
 </h2>
 
 
@@ -864,13 +772,13 @@ td {
 
 <th>ID</th>
 
+<th>Фото</th>
+
 <th>Товар</th>
 
 <th>Имя</th>
 
 <th>Телефон</th>
-
-<th>Фото</th>
 
 <th>Статус</th>
 
@@ -881,26 +789,24 @@ td {
 """
 
 
-
     for row in rows:
 
 
-        photo = "-"
+        photo = "—"
 
 
-
-        if row.get("image_url"):
+        if row["image_url"]:
 
 
             photo = f"""
 
-<a href="{row['image_url']}" target="_blank">
+            <a href="{row['image_url']}" target="_blank">
 
-<img src="{row['image_url']}" width="100">
+            <img src="{row['image_url']}">
 
-</a>
+            </a>
 
-"""
+            """
 
 
 
@@ -908,9 +814,13 @@ td {
 
 <tr>
 
-
 <td>
 {row['id']}
+</td>
+
+
+<td>
+{photo}
 </td>
 
 
@@ -926,11 +836,6 @@ td {
 
 <td>
 {row['phone']}
-</td>
-
-
-<td>
-{photo}
 </td>
 
 
@@ -956,7 +861,6 @@ td {
 
 
 </body>
-
 
 </html>
 
