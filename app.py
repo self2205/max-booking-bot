@@ -16,14 +16,8 @@ from states import get_state, set_state, clear_state
 
 app = FastAPI()
 
-# ==========================
-# INIT DATABASE
-# ==========================
 init_db()
 
-# ==========================
-# AUTH
-# ==========================
 security = HTTPBasic()
 
 
@@ -41,26 +35,17 @@ def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
     return True
 
 
-# ==========================
-# MODEL
-# ==========================
 class Booking(BaseModel):
     product: str
     name: str
     phone: str
 
 
-# ==========================
-# ROOT
-# ==========================
 @app.get("/")
 def root():
     return {"status": "ok", "service": "MAX Booking Bot"}
 
 
-# ==========================
-# BOOKING API
-# ==========================
 @app.post("/booking")
 def booking(data: Booking):
 
@@ -74,10 +59,12 @@ def booking(data: Booking):
 
 
 # ==========================
-# PAGE ДЛЯ КНОПКИ (ВАЖНО)
+# 🔥 PAGE ДЛЯ КНОПКИ
 # ==========================
 @app.get("/book")
 def book_page(product: str = ""):
+
+    safe_product = urllib.parse.quote(product)
 
     html = f"""
     <html>
@@ -92,9 +79,9 @@ def book_page(product: str = ""):
 
         <h3>{product}</h3>
 
-        <p>Нажмите кнопку ниже, чтобы оформить бронь в MAX</p>
+        <p>Нажмите кнопку ниже — вы перейдёте в MAX для оформления брони</p>
 
-        <a href="https://max-booking-bot-k3dx.onrender.com/webhook/book?product={urllib.parse.quote(product)}"
+        <a href="https://max-booking-bot-k3dx.onrender.com/webhook/book?product={safe_product}"
            style="display:inline-block;padding:15px 25px;background:green;color:white;
            text-decoration:none;border-radius:10px;font-size:18px;">
            🟢 Забронировать в MAX
@@ -108,7 +95,7 @@ def book_page(product: str = ""):
 
 
 # ==========================
-# MAX WEBHOOK
+# MAX WEBHOOK (ВАЖНО)
 # ==========================
 @app.post("/webhook")
 async def webhook(request: Request):
@@ -125,6 +112,7 @@ async def webhook(request: Request):
     event_type = data.get("type")
     payload = data.get("payload", {})
 
+    # кнопка из MAX
     if event_type == "message_callback":
         action = payload.get("action")
         product = payload.get("product")
@@ -216,7 +204,7 @@ async def telegram_webhook(request: Request):
 
     product = text.strip() if text else "Товар"
 
-    # ✅ ВАЖНО: теперь ведём в /book (НЕ API)
+    # 👉 ВАЖНО: ведём в /book (UI страница)
     product_url = (
         "https://max-booking-bot-k3dx.onrender.com/book?product="
         + urllib.parse.quote(product)
@@ -236,7 +224,6 @@ async def telegram_webhook(request: Request):
     try:
 
         if photo:
-
             requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
                 json={
@@ -249,7 +236,6 @@ async def telegram_webhook(request: Request):
             )
 
         else:
-
             requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
                 json={
