@@ -220,19 +220,26 @@ async def telegram_webhook(request: Request):
 
     text = message.get("text") or message.get("caption") or ""
 
-    # 📸 фото (file_id)
-    photo = None
-    if message.get("photo"):
-        photo = message["photo"][-1]["file_id"]
+    photo_url = None
 
-    if not text and not photo:
+    # 📸 получаем РЕАЛЬНУЮ ссылку на фото
+    if message.get("photo"):
+        file_id = message["photo"][-1]["file_id"]
+
+        file_info = requests.get(
+            f"https://api.telegram.org/bot{TG_TOKEN}/getFile",
+            params={"file_id": file_id}
+        ).json()
+
+        file_path = file_info["result"]["file_path"]
+
+        photo_url = f"https://api.telegram.org/file/bot{TG_TOKEN}/{file_path}"
+
+    if not text and not photo_url:
         return {"ok": True}
 
     product = text.strip() if text else "Товар"
 
-    # ==========================
-    # MAX LINK (через /start)
-    # ==========================
     product_url = (
         "https://max.ru/se13456903_bot?start="
         + urllib.parse.quote(f"product_{product}")
@@ -251,36 +258,37 @@ async def telegram_webhook(request: Request):
 
     try:
 
-        # 📸 PHOTO POST
-        if photo:
-            resp = requests.post(
+        # 📦 В КАНАЛ
+        if photo_url:
+            requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
                 data={
                     "chat_id": TG_CHANNEL_CHAT_ID,
-                    "photo": photo,
+                    "photo": photo_url,
                     "caption": f"📦 {product}",
                     "reply_markup": json.dumps(reply_markup, ensure_ascii=False)
-                },
-                timeout=10
+                }
             )
-
-        # 📝 TEXT POST
         else:
-            resp = requests.post(
+            requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
                 data={
                     "chat_id": TG_CHANNEL_CHAT_ID,
                     "text": f"📦 {product}",
                     "reply_markup": json.dumps(reply_markup, ensure_ascii=False)
-                },
-                timeout=10
+                }
             )
-
-        print("STATUS:", resp.status_code)
-        print("BODY:", resp.text)
 
     except Exception as e:
         print("TELEGRAM ERROR:", e)
+
+    # ✅ ВАЖНО: ПЕРЕДАЁМ В MAX ЗАЯВКУ
+    create_booking(
+        product=product,
+        name="—",
+        phone="—",
+        image_url=photo_url   # 🔥 ВОТ ЭТО КЛЮЧЕВО
+    )
 
     return {"ok": True}
 # ==========================
