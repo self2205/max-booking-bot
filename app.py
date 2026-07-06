@@ -167,18 +167,18 @@ async def telegram_webhook(request: Request):
     print(data)
     print("======================================")
 
-    message = data.get("message", {})
+    message = data.get("message")
     if not message:
         return {"ok": True}
 
     chat = message.get("chat", {})
     chat_id = chat.get("id")
-    text = message.get("text", "")
+    text = message.get("text")
 
     print("CHAT ID:", chat_id)
     print("TEXT:", text)
 
-    # игнор команд
+    # игнор пустых и команд
     if not text or text.startswith("/"):
         return {"ok": True}
 
@@ -208,12 +208,16 @@ async def telegram_webhook(request: Request):
         "reply_markup": reply_markup
     }
 
-    resp = requests.post(url, json=payload)
+    try:
+        resp = requests.post(url, json=payload, timeout=10)
 
-    print("========== TELEGRAM RESPONSE ==========")
-    print("STATUS:", resp.status_code)
-    print("BODY:", resp.text)
-    print("=======================================")
+        print("========== TELEGRAM RESPONSE ==========")
+        print("STATUS:", resp.status_code)
+        print("BODY:", resp.text)
+        print("=======================================")
+
+    except Exception as e:
+        print("TELEGRAM ERROR:", str(e))
 
     return {"ok": True}
 # ==========================
