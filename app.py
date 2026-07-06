@@ -232,45 +232,63 @@ async def telegram_webhook(request: Request):
     if not message:
         return {"ok": True}
 
-    chat = message.get("chat", {})
-    chat_id = chat.get("id")
-
     text = message.get("text") or message.get("caption") or ""
 
     photo = None
+    image_url = ""
+
+    # ==========================
+    # Получаем ссылку на фото
+    # ==========================
     if message.get("photo"):
+
         photo = message["photo"][-1]["file_id"]
 
-    if not text and not photo:
+        r = requests.get(
+            f"https://api.telegram.org/bot{TG_TOKEN}/getFile",
+            params={
+                "file_id": photo
+            },
+            timeout=10
+        )
+
+        data_file = r.json()
+
+        if data_file.get("ok"):
+
+            file_path = data_file["result"]["file_path"]
+
+            image_url = (
+                f"https://api.telegram.org/file/bot{TG_TOKEN}/{file_path}"
+            )
+
+    if not text and not image_url:
         return {"ok": True}
 
-    # чистим товар
     product = text.strip() if text else "Товар"
 
-       # ==========================
-    # ВАЖНО: ссылка В MAX БОТА
-    # ==========================
+    # Передаём товар + фото в MAX
+    start_data = f"product={product}|photo={image_url}"
 
-    start_param = urllib.parse.quote(f"product_{product}")
+    start_param = urllib.parse.quote(start_data)
 
     product_url = (
         f"https://max.ru/se13456903_bot?start={start_param}"
     )
 
     reply_markup = {
-        "inline_keyboard": [
-            [
-                {
-                    "text": "🟢 Забронировать",
-                    "url": product_url
-                }
-            ]
-        ]
+        "inline_keyboard": [[
+            {
+                "text": "🟢 Забронировать",
+                "url": product_url
+            }
+        ]]
     }
 
     try:
 
         if photo:
+
             requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
                 json={
@@ -281,7 +299,9 @@ async def telegram_webhook(request: Request):
                 },
                 timeout=10
             )
+
         else:
+
             requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
                 json={
