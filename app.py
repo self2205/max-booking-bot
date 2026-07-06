@@ -1,4 +1,3 @@
-from max_service import get_max_message, extract_image
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -16,8 +15,8 @@ from booking_service import create_booking
 from max_service import send_message_max
 from states import get_state, set_state, clear_state
 
-app = FastAPI()
 
+app = FastAPI()
 init_db()
 
 security = HTTPBasic()
@@ -36,33 +35,27 @@ def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
 
     return True
 
+def extract_product(payload: str):
+    """
+    Универсальный парсер товара из MAX payload
+    """
+    if not payload:
+        return None
 
-class Booking(BaseModel):
-    product: str
-    name: str
-    phone: str
+    payload = str(payload).strip()
 
+    # убираем product_
+    if payload.startswith("product_"):
+        payload = payload.replace("product_", "", 1)
 
-@app.get("/")
-def root():
-    return {"status": "ok", "service": "MAX Booking Bot"}
+    # чистим пост (MAX часто присылает текст + цену + хэштеги)
+    lines = [l.strip() for l in payload.split("\n") if l.strip()]
+    return "\n".join(lines).strip()
 
+    # ==========================
+    # WEBHOOK MAX
+    # ==========================
 
-@app.post("/booking")
-def booking(data: Booking):
-
-    booking_id = create_booking(
-        product=data.product,
-        name=data.name,
-        phone=data.phone
-    )
-
-    return {"success": True, "booking_id": booking_id}
-
-
-# ==========================
-# MAX WEBHOOK (FINAL FIX)
-# ==========================
 @app.post("/webhook")
 async def webhook(request: Request):
 
@@ -75,7 +68,7 @@ async def webhook(request: Request):
     update_type = data.get("update_type")
 
     # ==========================
-    # BOT STARTED (FIXED PARSER 100%)
+    # BOT STARTED
     # ==========================
     if update_type == "bot_started":
 
@@ -85,26 +78,8 @@ async def webhook(request: Request):
 
         print("RAW PAYLOAD:", payload)
 
-        product = None
+        product = extract_product(payload)
 
-        # 🔥 FIXED PARSER (СТАБИЛЬНЫЙ 100%)
-        if payload:
-
-            payload = str(payload).strip()
-
-            # 1. убираем prefix product_
-            if payload.startswith("product_"):
-                payload = payload.replace("product_", "", 1)
-
-            # 2. чистим переносы (MAX часто кидает пост целиком)
-            lines = [l.strip() for l in payload.split("\n") if l.strip()]
-            payload = "\n".join(lines).strip()
-
-            product = payload if payload else None
-
-        # ==========================
-        # RESULT
-        # ==========================
         if product:
 
             set_state(user_id, "WAIT_NAME", {
@@ -146,35 +121,27 @@ async def webhook(request: Request):
 
     state = get_state(user_id)
 
-    # ==========================
     # START
-    # ==========================
     if text == "/start":
         set_state(user_id, "WAIT_PRODUCT", {})
         send_message_max(chat_id, "👋 Привет!\n\nЧто хотите забронировать?")
         return {"ok": True}
 
-    # ==========================
-    # PRODUCT
-    # ==========================
+    # PRODUCT STEP
     if state and state["state"] == "WAIT_PRODUCT":
         state["data"]["product"] = text
         set_state(user_id, "WAIT_NAME", state["data"])
         send_message_max(chat_id, "✍️ Введите ваше имя")
         return {"ok": True}
 
-    # ==========================
-    # NAME
-    # ==========================
+    # NAME STEP
     if state and state["state"] == "WAIT_NAME":
         state["data"]["name"] = text
         set_state(user_id, "WAIT_PHONE", state["data"])
         send_message_max(chat_id, "📞 Введите телефон")
         return {"ok": True}
 
-    # ==========================
-    # PHONE → CREATE BOOKING
-    # ==========================
+    # PHONE STEP
     if state and state["state"] == "WAIT_PHONE":
         state["data"]["phone"] = text
 
@@ -195,9 +162,11 @@ async def webhook(request: Request):
         return {"ok": True}
 
     return {"ok": True}
-# ==========================
-# TELEGRAM WEBHOOK (FINAL FIX)
-# ==========================
+    
+    # ==========================
+    # TELEGRAM WEBHOOK
+    # ==========================
+
 @app.post("/telegram-webhook")
 async def telegram_webhook(request: Request):
 
@@ -212,25 +181,40 @@ async def telegram_webhook(request: Request):
 
     text = message.get("text") or ""
     caption = message.get("caption") or ""
-
     photo = message.get("photo")
 
+    # ==========================
+    # PRODUCT BUILD (ВАЖНО)
+    # ==========================
     product_raw = caption if caption else text
-    product = extract_product(product_raw)
+
+    try:
+        product = extract_product(product_raw)
+    except Exception:
+        product = product_raw
 
     if not product:
         product = "Товар"
 
+    # ==========================
+    # MAX LINK (СТАБИЛЬНО)
+    # ==========================
     product_url = f"https://max.ru/se13456903_bot?start=product_{urllib.parse.quote(product)}"
 
     reply_markup = json.dumps({
         "inline_keyboard": [
-            [{"text": "🟢 Забронировать", "url": product_url}]
+            [
+                {
+                    "text": "🟢 Забронировать",
+                    "url": product_url
+                }
+            ]
         ]
     })
 
     try:
 
+        # PHOTO POST
         if photo:
 
             file_id = photo[-1]["file_id"]
@@ -246,6 +230,7 @@ async def telegram_webhook(request: Request):
                 timeout=15
             )
 
+        # TEXT POST
         else:
 
             requests.post(
@@ -262,116 +247,30 @@ async def telegram_webhook(request: Request):
         print("TELEGRAM ERROR:", e)
 
     return {"ok": True}
-# ==========================
-# ADMIN PANEL
-# ==========================
+
+    # ==========================
+    # ADMIN PANEL
+    # ==========================
+
 @app.get("/admin", response_class=HTMLResponse)
 def admin(auth: bool = Depends(check_auth)):
 
     rows = get_bookings()
 
-    html = """
-<!DOCTYPE html>
-<html lang="ru">
+    html = "<h2>📋 Заявки</h2><table border=1 cellpadding=5>"
 
-<head>
-<meta charset="UTF-8">
-<title>Заявки</title>
-
-<style>
-
-body {
-    font-family: Arial, sans-serif;
-    background: #f5f5f5;
-    margin: 40px;
-}
-
-h2 {
-    margin-bottom: 20px;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-}
-
-th {
-    background: #222;
-    color: white;
-    padding: 12px;
-    text-align: left;
-}
-
-td {
-    border: 1px solid #ddd;
-    padding: 12px;
-    vertical-align: middle;
-}
-
-tr:nth-child(even) {
-    background: #f8f8f8;
-}
-
-.status {
-    font-weight: bold;
-}
-
-img {
-    border-radius: 6px;
-}
-
-</style>
-
-</head>
-
-<body>
-
-<h2>📋 Заявки магазина</h2>
-
-<table>
-
-<tr>
-    <th>ID</th>
-    <th>Фото</th>
-    <th>Товар</th>
-    <th>Имя</th>
-    <th>Телефон</th>
-    <th>Статус</th>
-    <th>Дата</th>
-</tr>
-"""
+    html += "<tr><th>ID</th><th>Товар</th><th>Имя</th><th>Телефон</th><th>Статус</th></tr>"
 
     for row in rows:
-
-        photo = "—"
-
-        if row["image_url"]:
-            photo = f"""
-            <a href="{row['image_url']}" target="_blank">
-                <img src="{row['image_url']}" width="90">
-            </a>
-            """
-
         html += f"""
-<tr>
-    <td>{row['id']}</td>
-    <td>{photo}</td>
-    <td>{row['product']}</td>
-    <td>{row['name']}</td>
-    <td>{row['phone']}</td>
-    <td class="status">{row['status']}</td>
-    <td>{row['created_at']}</td>
-</tr>
-"""
+        <tr>
+            <td>{row['id']}</td>
+            <td>{row['product']}</td>
+            <td>{row['name']}</td>
+            <td>{row['phone']}</td>
+            <td>{row['status']}</td>
+        </tr>
+        """
 
-    html += """
-</table>
-
-</body>
-</html>
-"""
-
-    return HTMLResponse(content=html)
-
-    return HTMLResponse(content=html)
+    html += "</table>"
+    return HTMLResponse(html)
