@@ -116,14 +116,39 @@ def extract_image_from_webhook(message):
 # КАРТИНКА ИЗ API
 # =========================
 def extract_image(data):
+
     body = data.get("message", {}).get("body", {})
 
-    for a in body.get("attachments", []):
-        if a.get("type") == "image":
-            return a.get("payload", {}).get("url")
+    attachments = body.get("attachments", [])
 
-    for m in body.get("media", []):
+    for a in attachments:
+
+        if a.get("type") != "image":
+            continue
+
+        payload = a.get("payload", {})
+
+        if payload.get("url"):
+            return payload.get("url")
+
+        if payload.get("image", {}).get("url"):
+            return payload["image"]["url"]
+
+        if payload.get("image_url"):
+            return payload.get("image_url")
+
+
+    media = body.get("media", [])
+
+    for m in media:
+
         if m.get("type") == "image":
-            return m.get("url")
+
+            if m.get("url"):
+                return m.get("url")
+
+            if m.get("image_url"):
+                return m.get("image_url")
+
 
     return None
