@@ -101,12 +101,19 @@ def book_page(product: str = ""):
 @app.post("/webhook")
 async def webhook(request: Request):
 
+    import json
+    import requests
+
     data = await request.json()
+
+    print("\n========== MAX WEBHOOK ==========")
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+    print("=================================\n")
 
     update_type = data.get("update_type")
 
     # ==========================
-    # BOT STARTED (from Telegram link)
+    # BOT STARTED
     # ==========================
     if update_type == "bot_started":
 
@@ -115,23 +122,23 @@ async def webhook(request: Request):
         payload = data.get("payload", "")
 
         product = None
-
         if payload and "product_" in payload:
-            product = payload.replace("product_", "").strip()
+            product = payload.split("product_")[-1].strip()
 
         if product:
-            set_state(user_id, "WAIT_NAME", {
-                "product": product
-            })
+            set_state(user_id, "WAIT_NAME", {"product": product})
 
             send_message_max(
                 chat_id,
                 f"🟢 Бронирование\n\n📦 {product}\n\n✍️ Введите ваше имя"
             )
-
         else:
             set_state(user_id, "WAIT_PRODUCT", {})
-            send_message_max(chat_id, "👋 Привет!\n\nЧто хотите забронировать?")
+
+            send_message_max(
+                chat_id,
+                "👋 Привет!\n\nЧто хотите забронировать?"
+            )
 
         return {"ok": True}
 
@@ -142,11 +149,11 @@ async def webhook(request: Request):
         return {"ok": True}
 
     message = data.get("message", {})
-    body = message.get("body", {})
 
     chat_id = message.get("recipient", {}).get("chat_id")
     user_id = message.get("sender", {}).get("user_id")
 
+    body = message.get("body", {})
     text = body.get("text", "")
 
     if not chat_id:
@@ -155,29 +162,36 @@ async def webhook(request: Request):
     state = get_state(user_id)
 
     # ==========================
-    # IMAGE SUPPORT (MAX)
+    # IMAGE EXTRACT (ВАЖНО)
     # ==========================
-    image_url = None
+    photo_url = None
+
     for a in body.get("attachments", []):
         if a.get("type") == "image":
-            image_url = a.get("payload", {}).get("url")
+            photo_url = a.get("payload", {}).get("url")
 
     # ==========================
-    # FLOW
+    # START
     # ==========================
     if text == "/start":
         set_state(user_id, "WAIT_PRODUCT", {})
         send_message_max(chat_id, "👋 Привет!\n\nЧто хотите забронировать?")
         return {"ok": True}
 
+    # ==========================
+    # PRODUCT STEP
+    # ==========================
     if state and state["state"] == "WAIT_PRODUCT":
         state["data"]["product"] = text
-        state["data"]["image_url"] = image_url
+        state["data"]["image_url"] = photo_url
 
         set_state(user_id, "WAIT_NAME", state["data"])
         send_message_max(chat_id, "✍️ Введите ваше имя")
         return {"ok": True}
 
+    # ==========================
+    # NAME STEP
+    # ==========================
     if state and state["state"] == "WAIT_NAME":
         state["data"]["name"] = text
 
@@ -185,19 +199,25 @@ async def webhook(request: Request):
         send_message_max(chat_id, "📞 Введите телефон")
         return {"ok": True}
 
+    # ==========================
+    # PHONE STEP (ЗАЯВКА)
+    # ==========================
     if state and state["state"] == "WAIT_PHONE":
         state["data"]["phone"] = text
 
-        create_booking(
-            product=state["data"]["product"],
-            name=state["data"]["name"],
-            phone=state["data"]["phone"],
-            image_url=state["data"].get("image_url")
+        booking_id = create_booking(
+            product=state["data"].get("product"),
+            name=state["data"].get("name"),
+            phone=state["data"].get("phone"),
+            image_url=state["data"].get("image_url")   # 🔥 ВОТ ГЛАВНЫЙ ФИКС
         )
 
         clear_state(user_id)
 
-        send_message_max(chat_id, "✅ Заявка создана!")
+        send_message_max(
+            chat_id,
+            f"✅ Заявка создана!\nID: {booking_id}"
+        )
 
         return {"ok": True}
 
