@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 import secrets
 import requests
+import urllib.parse
 
 from config import *
 from database import init_db, get_bookings, change_status
@@ -15,27 +16,14 @@ from states import get_state, set_state, clear_state
 
 app = FastAPI()
 
-# ==========================
-# INIT DATABASE
-# ==========================
 init_db()
 
-# ==========================
-# AUTH
-# ==========================
 security = HTTPBasic()
 
 
 def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
-    login_ok = secrets.compare_digest(
-        credentials.username,
-        ADMIN_LOGIN
-    )
-
-    password_ok = secrets.compare_digest(
-        credentials.password,
-        ADMIN_PASSWORD
-    )
+    login_ok = secrets.compare_digest(credentials.username, ADMIN_LOGIN)
+    password_ok = secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
 
     if not (login_ok and password_ok):
         raise HTTPException(
@@ -47,29 +35,17 @@ def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
     return True
 
 
-# ==========================
-# MODEL
-# ==========================
 class Booking(BaseModel):
     product: str
     name: str
     phone: str
 
 
-# ==========================
-# ROOT
-# ==========================
 @app.get("/")
 def root():
-    return {
-        "status": "ok",
-        "service": "MAX Booking Bot"
-    }
+    return {"status": "ok", "service": "MAX Booking Bot"}
 
 
-# ==========================
-# BOOKING API
-# ==========================
 @app.post("/booking")
 def booking(data: Booking):
 
@@ -79,10 +55,8 @@ def booking(data: Booking):
         phone=data.phone
     )
 
-    return {
-        "success": True,
-        "booking_id": booking_id
-    }
+    return {"success": True, "booking_id": booking_id}
+
 
 @app.get("/debug/subscriptions")
 def debug_subscriptions():
@@ -94,30 +68,25 @@ def debug_subscriptions():
 
     return {
         "status": r.status_code,
-        "data": r.json() if r.headers.get("content-type","").startswith("application/json") else r.text
+        "data": r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
     }
 
+
 # ==========================
-# WEBHOOK MAX
+# MAX WEBHOOK
 # ==========================
 @app.post("/webhook")
 async def webhook(request: Request):
 
     data = await request.json()
 
-    print("========== FULL DATA ==========")
-    print(data)
-    print("================================")
-
     message = data.get("message", {})
     body = message.get("body", {})
 
     chat_id = message.get("recipient", {}).get("chat_id")
-
     text = body.get("text", "")
     user_id = message.get("sender", {}).get("user_id")
 
-    # 👉 ВАЖНО: обработка кнопок
     event_type = data.get("type")
     payload = data.get("payload", {})
 
@@ -125,75 +94,46 @@ async def webhook(request: Request):
         action = payload.get("action")
         product = payload.get("product")
 
-        print("BUTTON CLICK:", action, product)
-
         if action == "book" and product:
-            set_state(user_id, "WAIT_NAME", {
-                "product": product
-            })
+            set_state(user_id, "WAIT_NAME", {"product": product})
 
             send_message_max(
                 chat_id,
                 f"🟢 Бронирование:\n\n📦 {product}\n\n✍️ Введите ваше имя"
             )
-
             return {"ok": True}
 
     if not chat_id:
         return {"ok": True}
 
-    print("DEBUG:", chat_id, text)
-
     state = get_state(user_id)
 
     image_url = None
-
     for a in body.get("attachments", []):
         if a.get("type") == "image":
             image_url = a.get("payload", {}).get("url")
 
-    print("IMAGE URL:", image_url)
-
-    # ==========================
-    # START
-    # ==========================
     if text == "/start":
         set_state(user_id, "WAIT_PRODUCT", {})
         send_message_max(chat_id, "👋 Привет!\n\nЧто хотите забронировать?")
         return {"ok": True}
 
-    # ==========================
-    # WAIT PRODUCT (если без кнопки)
-    # ==========================
     if state and state["state"] == "WAIT_PRODUCT":
-
         state["data"]["product"] = text
         state["data"]["image_url"] = image_url
 
         set_state(user_id, "WAIT_NAME", state["data"])
-
         send_message_max(chat_id, "✍️ Введите ваше имя")
-
         return {"ok": True}
 
-    # ==========================
-    # WAIT NAME
-    # ==========================
     if state and state["state"] == "WAIT_NAME":
-
         state["data"]["name"] = text
 
         set_state(user_id, "WAIT_PHONE", state["data"])
-
         send_message_max(chat_id, "📞 Введите телефон")
-
         return {"ok": True}
 
-    # ==========================
-    # WAIT PHONE
-    # ==========================
     if state and state["state"] == "WAIT_PHONE":
-
         state["data"]["phone"] = text
 
         booking_id = create_booking(
@@ -207,12 +147,54 @@ async def webhook(request: Request):
 
         send_message_max(
             chat_id,
-            f"✅ Заявка на бронирование создана! Наш менеджер свяжется с вами в ближайшее время.\n\nID: {booking_id}"
+            f"✅ Заявка создана!\nID: {booking_id}"
         )
 
         return {"ok": True}
 
-    send_message_max(chat_id, "Напишите /start чтобы начать")
+    return {"ok": True}
+
+
+# ==========================
+# TELEGRAM WEBHOOK (НОВОЕ)
+# ==========================
+@app.post("/telegram-webhook")
+async def telegram_webhook(request: Request):
+
+    data = await request.json()
+
+    message = data.get("message", {})
+    chat_id = message.get("chat", {}).get("id")
+    text = message.get("text", "")
+
+    if not text or text.startswith("/"):
+        return {"ok": True}
+
+    product = text.strip()
+
+    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+
+    product_url = f"https://max-booking-bot-k3dx.onrender.com/webhook/book?product={urllib.parse.quote(product)}"
+
+    reply_markup = {
+        "inline_keyboard": [
+            [
+                {
+                    "text": "🟢 Забронировать",
+                    "url": product_url
+                }
+            ]
+        ]
+    }
+
+    requests.post(
+        url,
+        data={
+            "chat_id": TG_CHANNEL_CHAT_ID,
+            "text": f"📦 {product}",
+            "reply_markup": reply_markup
+        }
+    )
 
     return {"ok": True}
 # ==========================
