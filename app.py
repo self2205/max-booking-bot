@@ -101,6 +101,7 @@ def book_page(product: str = ""):
 async def webhook(request: Request):
 
     import json
+    import re
 
     data = await request.json()
 
@@ -108,31 +109,58 @@ async def webhook(request: Request):
     print(json.dumps(data, ensure_ascii=False, indent=2))
     print("=================================\n")
 
-    message = data.get("message", {})
-    body = message.get("body", {})
-
-    chat_id = message.get("recipient", {}).get("chat_id")
-    text = body.get("text", "")
-    user_id = message.get("sender", {}).get("user_id")
-
-    event_type = data.get("type")
-    payload = data.get("payload", {})
+    update_type = data.get("update_type")
 
     # ==========================
-    # КНОПКИ ИЗ MAX
+    # BOT STARTED (КНОПКА /start)
     # ==========================
-    if event_type == "message_callback":
-        action = payload.get("action")
-        product = payload.get("product")
+    if update_type == "bot_started":
 
-        if action == "book" and product:
-            set_state(user_id, "WAIT_NAME", {"product": product})
+        user_id = data.get("user_id")
+        chat_id = data.get("chat_id")
+        payload = data.get("payload", "")
+
+        # payload = "product_Товар..."
+        product = None
+
+        if payload and payload.startswith("product_"):
+            product = payload.replace("product_", "").strip()
+
+        if product:
+
+            set_state(user_id, "WAIT_NAME", {
+                "product": product
+            })
 
             send_message_max(
                 chat_id,
-                f"🟢 Бронирование:\n\n📦 {product}\n\n✍️ Введите ваше имя"
+                f"🟢 Бронирование\n\n📦 {product}\n\n✍️ Введите ваше имя"
             )
-            return {"ok": True}
+
+        else:
+
+            set_state(user_id, "WAIT_PRODUCT", {})
+
+            send_message_max(
+                chat_id,
+                "👋 Привет!\n\nЧто хотите забронировать?"
+            )
+
+        return {"ok": True}
+
+    # ==========================
+    # MESSAGE
+    # ==========================
+    if update_type != "message_created":
+        return {"ok": True}
+
+    message = data.get("message", {})
+
+    chat_id = message.get("recipient", {}).get("chat_id")
+    user_id = message.get("sender", {}).get("user_id")
+
+    body = message.get("body", {})
+    text = body.get("text", "")
 
     if not chat_id:
         return {"ok": True}
@@ -140,37 +168,9 @@ async def webhook(request: Request):
     state = get_state(user_id)
 
     # ==========================
-    # IMAGE
+    # START
     # ==========================
-    image_url = None
-    for a in body.get("attachments", []):
-        if a.get("type") == "image":
-            image_url = a.get("payload", {}).get("url")
-
-    # ==========================
-    # START (ГЛАВНЫЙ ФИКС)
-    # ==========================
-    if text.startswith("/start"):
-
-        parts = text.split(" ", 1)
-
-        # если есть товар в /start
-        if len(parts) > 1 and parts[1].strip():
-
-            product = parts[1].strip()
-
-            set_state(user_id, "WAIT_NAME", {
-                "product": product,
-                "image_url": image_url
-            })
-
-            send_message_max(
-                chat_id,
-                f"🟢 Бронирование:\n\n📦 {product}\n\n✍️ Введите ваше имя"
-            )
-            return {"ok": True}
-
-        # обычный старт
+    if text == "/start":
         set_state(user_id, "WAIT_PRODUCT", {})
         send_message_max(chat_id, "👋 Привет!\n\nЧто хотите забронировать?")
         return {"ok": True}
@@ -180,7 +180,6 @@ async def webhook(request: Request):
     # ==========================
     if state and state["state"] == "WAIT_PRODUCT":
         state["data"]["product"] = text
-        state["data"]["image_url"] = image_url
 
         set_state(user_id, "WAIT_NAME", state["data"])
         send_message_max(chat_id, "✍️ Введите ваше имя")
