@@ -54,6 +54,7 @@ class Booking(BaseModel):
     name: str
     phone: str
 
+
 # ==========================
 # ROOT
 # ==========================
@@ -101,8 +102,6 @@ async def webhook(request: Request):
     chat_id = message.get("recipient", {}).get("chat_id")
 
     text = body.get("text", "")
-    mid = body.get("mid")
-
     user_id = message.get("sender", {}).get("user_id")
 
     if not chat_id:
@@ -126,32 +125,44 @@ async def webhook(request: Request):
         return {"ok": True}
 
     if state and state["state"] == "WAIT_PRODUCT":
+
         state["data"]["product"] = text
         state["data"]["image_url"] = image_url
 
         set_state(user_id, "WAIT_NAME", state["data"])
+
         send_message_max(chat_id, "✍️ Введите ваше имя")
+
         return {"ok": True}
 
     if state and state["state"] == "WAIT_NAME":
+
         state["data"]["name"] = text
 
         set_state(user_id, "WAIT_PHONE", state["data"])
+
         send_message_max(chat_id, "📞 Введите телефон")
+
         return {"ok": True}
 
     if state and state["state"] == "WAIT_PHONE":
+
         state["data"]["phone"] = text
 
         booking_id = create_booking(
             product=state["data"].get("product"),
             name=state["data"].get("name"),
-            phone=state["data"].get("phone")
+            phone=state["data"].get("phone"),
+            image_url=state["data"].get("image_url")
         )
 
         clear_state(user_id)
 
-        send_message_max(chat_id, f"✅ Заявка создана!\n\nID: {booking_id}")
+        send_message_max(
+            chat_id,
+            f"✅ Заявка создана!\n\nID: {booking_id}"
+        )
+
         return {"ok": True}
 
     send_message_max(chat_id, "Напишите /start чтобы начать")
@@ -201,6 +212,7 @@ th {
 td {
     border: 1px solid #ddd;
     padding: 12px;
+    vertical-align: middle;
 }
 
 tr:nth-child(even) {
@@ -209,6 +221,10 @@ tr:nth-child(even) {
 
 .status {
     font-weight: bold;
+}
+
+img {
+    border-radius: 6px;
 }
 
 </style>
@@ -223,6 +239,7 @@ tr:nth-child(even) {
 
 <tr>
     <th>ID</th>
+    <th>Фото</th>
     <th>Товар</th>
     <th>Имя</th>
     <th>Телефон</th>
@@ -232,9 +249,20 @@ tr:nth-child(even) {
 """
 
     for row in rows:
+
+        photo = "—"
+
+        if row["image_url"]:
+            photo = f"""
+            <a href="{row['image_url']}" target="_blank">
+                <img src="{row['image_url']}" width="90">
+            </a>
+            """
+
         html += f"""
 <tr>
     <td>{row['id']}</td>
+    <td>{photo}</td>
     <td>{row['product']}</td>
     <td>{row['name']}</td>
     <td>{row['phone']}</td>
@@ -249,5 +277,7 @@ tr:nth-child(even) {
 </body>
 </html>
 """
+
+    return HTMLResponse(content=html)
 
     return HTMLResponse(content=html)
