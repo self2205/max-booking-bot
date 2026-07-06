@@ -93,11 +93,20 @@ async def webhook(request: Request):
         if payload:
 
             # убираем product_
-            if payload.startswith("product_"):
-                product = payload.replace("product_", "", 1).strip()
+            def extract_product(payload: str):
+    if not payload:
+        return None
 
-            else:
-                product = payload.strip()
+    payload = payload.strip()
+
+    # убираем возможный prefix
+    if "product_" in payload:
+        payload = payload.split("product_", 1)[1]
+
+    # чистим переносы
+    lines = [l.strip() for l in payload.split("\n") if l.strip()]
+
+    return "\n".join(lines).strip()
 
         if product:
 
@@ -200,7 +209,7 @@ async def telegram_webhook(request: Request):
     # ==========================
     # FIX: full product
     # ==========================
-    product = (caption if caption else text).strip()
+    product = extract_product(payload)
 
     if not product:
         product = "Товар"
