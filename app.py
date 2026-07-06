@@ -194,16 +194,29 @@ async def telegram_webhook(request: Request):
     if not message:
         return {"ok": True}
 
-    text = message.get("text") or message.get("caption") or ""
-
-    if not text and not message.get("photo"):
-        return {"ok": True}
-
-    product = text.strip() if text else "Товар"
-
     chat = message.get("chat", {})
     chat_id = chat.get("id")
 
+    text = message.get("text") or ""
+    caption = message.get("caption") or ""
+
+    photo = message.get("photo")
+
+    # ==========================
+    # 💥 FIX: собираем ПОЛНЫЙ ТОВАР
+    # ==========================
+    product_raw = caption if caption else text
+
+    product = "\n".join(
+        [line.strip() for line in product_raw.split("\n") if line.strip()]
+    ).strip()
+
+    if not product:
+        product = "Товар"
+
+    # ==========================
+    # MAX LINK (ВАЖНО: encode)
+    # ==========================
     product_url = f"https://max.ru/se13456903_bot?start={urllib.parse.quote(product)}"
 
     reply_markup = json.dumps({
@@ -220,11 +233,11 @@ async def telegram_webhook(request: Request):
     try:
 
         # ==========================
-        # 📸 ВАЖНО: используем file_id (НЕ URL)
+        # 📸 PHOTO POST
         # ==========================
-        if message.get("photo"):
+        if photo:
 
-            file_id = message["photo"][-1]["file_id"]
+            file_id = photo[-1]["file_id"]
 
             resp = requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
@@ -237,6 +250,9 @@ async def telegram_webhook(request: Request):
                 timeout=15
             )
 
+        # ==========================
+        # TEXT POST
+        # ==========================
         else:
 
             resp = requests.post(
