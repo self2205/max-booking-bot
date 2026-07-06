@@ -156,25 +156,38 @@ async def webhook(request: Request):
 
 
 # ==========================
-# TELEGRAM WEBHOOK (НОВОЕ)
+# TELEGRAM WEBHOOK
 # ==========================
 @app.post("/telegram-webhook")
 async def telegram_webhook(request: Request):
 
     data = await request.json()
 
+    print("========== TELEGRAM UPDATE ==========")
+    print(data)
+    print("======================================")
+
     message = data.get("message", {})
-    chat_id = message.get("chat", {}).get("id")
+    if not message:
+        return {"ok": True}
+
+    chat = message.get("chat", {})
+    chat_id = chat.get("id")
     text = message.get("text", "")
 
+    print("CHAT ID:", chat_id)
+    print("TEXT:", text)
+
+    # игнор команд
     if not text or text.startswith("/"):
         return {"ok": True}
 
     product = text.strip()
 
-    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-
-    product_url = f"https://max-booking-bot-k3dx.onrender.com/webhook/book?product={urllib.parse.quote(product)}"
+    product_url = (
+        "https://max-booking-bot-k3dx.onrender.com/webhook/book?product="
+        + urllib.parse.quote(product)
+    )
 
     reply_markup = {
         "inline_keyboard": [
@@ -187,14 +200,20 @@ async def telegram_webhook(request: Request):
         ]
     }
 
-    requests.post(
-        url,
-        data={
-            "chat_id": TG_CHANNEL_CHAT_ID,
-            "text": f"📦 {product}",
-            "reply_markup": reply_markup
-        }
-    )
+    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+
+    payload = {
+        "chat_id": TG_CHANNEL_CHAT_ID,
+        "text": f"📦 {product}",
+        "reply_markup": reply_markup
+    }
+
+    resp = requests.post(url, json=payload)
+
+    print("========== TELEGRAM RESPONSE ==========")
+    print("STATUS:", resp.status_code)
+    print("BODY:", resp.text)
+    print("=======================================")
 
     return {"ok": True}
 # ==========================
