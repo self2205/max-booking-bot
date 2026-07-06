@@ -95,46 +95,32 @@ def book_page(product: str = ""):
 
 
 # ==========================
-# MAX WEBHOOK
+# MAX WEBHOOK (FINAL FIX)
 # ==========================
 @app.post("/webhook")
 async def webhook(request: Request):
 
-    import json, base64
-
     data = await request.json()
 
-    print("\n========== MAX WEBHOOK ==========")
-    print(data)
-    print("=================================\n")
+    update_type = data.get("update_type")
 
     # ==========================
-    # START (кнопка из Telegram)
+    # BOT STARTED (from Telegram link)
     # ==========================
-    if data.get("update_type") == "bot_started":
+    if update_type == "bot_started":
 
         user_id = data.get("user_id")
         chat_id = data.get("chat_id")
         payload = data.get("payload", "")
 
         product = None
-        photo = None
 
-        try:
-            decoded = base64.urlsafe_b64decode(payload).decode()
-            obj = json.loads(decoded)
-
-            product = obj.get("product")
-            photo = obj.get("photo")
-
-        except Exception as e:
-            print("START decode error:", e)
+        if payload and "product_" in payload:
+            product = payload.replace("product_", "").strip()
 
         if product:
-
             set_state(user_id, "WAIT_NAME", {
-                "product": product,
-                "photo": photo
+                "product": product
             })
 
             send_message_max(
@@ -143,28 +129,23 @@ async def webhook(request: Request):
             )
 
         else:
-
             set_state(user_id, "WAIT_PRODUCT", {})
-
-            send_message_max(
-                chat_id,
-                "👋 Привет!\n\nЧто хотите забронировать?"
-            )
+            send_message_max(chat_id, "👋 Привет!\n\nЧто хотите забронировать?")
 
         return {"ok": True}
 
     # ==========================
     # MESSAGE
     # ==========================
-    if data.get("update_type") != "message_created":
+    if update_type != "message_created":
         return {"ok": True}
 
     message = data.get("message", {})
+    body = message.get("body", {})
 
     chat_id = message.get("recipient", {}).get("chat_id")
     user_id = message.get("sender", {}).get("user_id")
 
-    body = message.get("body", {})
     text = body.get("text", "")
 
     if not chat_id:
@@ -173,36 +154,44 @@ async def webhook(request: Request):
     state = get_state(user_id)
 
     # ==========================
-    # STEP PRODUCT
+    # IMAGE SUPPORT (MAX)
     # ==========================
+    image_url = None
+    for a in body.get("attachments", []):
+        if a.get("type") == "image":
+            image_url = a.get("payload", {}).get("url")
+
+    # ==========================
+    # FLOW
+    # ==========================
+    if text == "/start":
+        set_state(user_id, "WAIT_PRODUCT", {})
+        send_message_max(chat_id, "👋 Привет!\n\nЧто хотите забронировать?")
+        return {"ok": True}
+
     if state and state["state"] == "WAIT_PRODUCT":
         state["data"]["product"] = text
-        set_state(user_id, "WAIT_NAME", state["data"])
+        state["data"]["image_url"] = image_url
 
+        set_state(user_id, "WAIT_NAME", state["data"])
         send_message_max(chat_id, "✍️ Введите ваше имя")
         return {"ok": True}
 
-    # ==========================
-    # STEP NAME
-    # ==========================
     if state and state["state"] == "WAIT_NAME":
         state["data"]["name"] = text
-        set_state(user_id, "WAIT_PHONE", state["data"])
 
+        set_state(user_id, "WAIT_PHONE", state["data"])
         send_message_max(chat_id, "📞 Введите телефон")
         return {"ok": True}
 
-    # ==========================
-    # STEP PHONE
-    # ==========================
     if state and state["state"] == "WAIT_PHONE":
         state["data"]["phone"] = text
 
         create_booking(
-            product=state["data"].get("product"),
-            name=state["data"].get("name"),
-            phone=state["data"].get("phone"),
-            image_url=state["data"].get("photo")
+            product=state["data"]["product"],
+            name=state["data"]["name"],
+            phone=state["data"]["phone"],
+            image_url=state["data"].get("image_url")
         )
 
         clear_state(user_id)
@@ -214,7 +203,7 @@ async def webhook(request: Request):
     return {"ok": True}
 
 # ==========================
-# TELEGRAM WEBHOOK (FIXED)
+# TELEGRAM WEBHOOK (FINAL FIX)
 # ==========================
 @app.post("/telegram-webhook")
 async def telegram_webhook(request: Request):
@@ -232,7 +221,9 @@ async def telegram_webhook(request: Request):
 
     photo_url = None
 
-    # 📸 ВАЖНО: получаем реальный URL фото (не file_id)
+    # ==========================
+    # GET REAL PHOTO URL
+    # ==========================
     if message.get("photo"):
         file_id = message["photo"][-1]["file_id"]
 
@@ -245,39 +236,30 @@ async def telegram_webhook(request: Request):
 
         photo_url = f"https://api.telegram.org/file/bot{TG_TOKEN}/{file_path}"
 
-    if not text and not photo_url:
-        return {"ok": True}
-
     product = text.strip() if text else "Товар"
 
     # ==========================
-    # MAX start payload (кодируем всё)
+    # MAX DEEP LINK (/start payload)
     # ==========================
-    import json, base64
+    import urllib.parse
 
-    payload_data = {
-        "product": product,
-        "photo": photo_url
-    }
+    start_payload = urllib.parse.quote(f"product_{product}")
 
-    encoded = base64.urlsafe_b64encode(
-        json.dumps(payload_data, ensure_ascii=False).encode()
-    ).decode()
-
-    product_url = f"https://max.ru/se13456903_bot?start={encoded}"
+    max_url = f"https://max.ru/se13456903_bot?start={start_payload}"
 
     reply_markup = {
         "inline_keyboard": [
             [
                 {
-                    "text": "🟢 Забронировать",
-                    "url": product_url
+                    "text": "🟢 Забронировать в MAX",
+                    "url": max_url
                 }
             ]
         ]
     }
 
     try:
+
         if photo_url:
             requests.post(
                 f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
