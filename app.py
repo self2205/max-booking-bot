@@ -117,6 +117,28 @@ async def webhook(request: Request):
     text = body.get("text", "")
     user_id = message.get("sender", {}).get("user_id")
 
+    # 👉 ВАЖНО: обработка кнопок
+    event_type = data.get("type")
+    payload = data.get("payload", {})
+
+    if event_type == "message_callback":
+        action = payload.get("action")
+        product = payload.get("product")
+
+        print("BUTTON CLICK:", action, product)
+
+        if action == "book" and product:
+            set_state(user_id, "WAIT_NAME", {
+                "product": product
+            })
+
+            send_message_max(
+                chat_id,
+                f"🟢 Бронирование:\n\n📦 {product}\n\n✍️ Введите ваше имя"
+            )
+
+            return {"ok": True}
+
     if not chat_id:
         return {"ok": True}
 
@@ -132,11 +154,17 @@ async def webhook(request: Request):
 
     print("IMAGE URL:", image_url)
 
+    # ==========================
+    # START
+    # ==========================
     if text == "/start":
         set_state(user_id, "WAIT_PRODUCT", {})
         send_message_max(chat_id, "👋 Привет!\n\nЧто хотите забронировать?")
         return {"ok": True}
 
+    # ==========================
+    # WAIT PRODUCT (если без кнопки)
+    # ==========================
     if state and state["state"] == "WAIT_PRODUCT":
 
         state["data"]["product"] = text
@@ -148,6 +176,9 @@ async def webhook(request: Request):
 
         return {"ok": True}
 
+    # ==========================
+    # WAIT NAME
+    # ==========================
     if state and state["state"] == "WAIT_NAME":
 
         state["data"]["name"] = text
@@ -158,6 +189,9 @@ async def webhook(request: Request):
 
         return {"ok": True}
 
+    # ==========================
+    # WAIT PHONE
+    # ==========================
     if state and state["state"] == "WAIT_PHONE":
 
         state["data"]["phone"] = text
