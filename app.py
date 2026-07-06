@@ -8,6 +8,7 @@ import secrets
 import requests
 import urllib.parse
 import json
+import base64
 
 from config import *
 from database import init_db, get_bookings, change_status
@@ -74,7 +75,7 @@ async def webhook(request: Request):
     update_type = data.get("update_type")
 
     # ==========================
-    # BOT STARTED (ВАЖНО)
+    # BOT STARTED
     # ==========================
     if update_type == "bot_started":
 
@@ -87,17 +88,13 @@ async def webhook(request: Request):
         product = None
 
         # ==========================
-        # FIX: нормальный парсинг
+        # FIXED PARSER (100%)
         # ==========================
         if payload:
 
-            # вариант 1: product_
+            # убираем product_
             if payload.startswith("product_"):
-                product = payload.replace("product_", "").strip()
-
-            # вариант 2: param1_value1_param2_value2
-            elif "_" in payload:
-                product = payload.split("_")[1].strip()
+                product = payload.replace("product_", "", 1).strip()
 
             else:
                 product = payload.strip()
@@ -150,14 +147,12 @@ async def webhook(request: Request):
 
     if state and state["state"] == "WAIT_PRODUCT":
         state["data"]["product"] = text
-
         set_state(user_id, "WAIT_NAME", state["data"])
         send_message_max(chat_id, "✍️ Введите ваше имя")
         return {"ok": True}
 
     if state and state["state"] == "WAIT_NAME":
         state["data"]["name"] = text
-
         set_state(user_id, "WAIT_PHONE", state["data"])
         send_message_max(chat_id, "📞 Введите телефон")
         return {"ok": True}
