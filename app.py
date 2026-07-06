@@ -81,7 +81,7 @@ def book_page(product: str = ""):
 
         <p>Нажмите кнопку ниже — вы перейдёте в MAX для оформления брони</p>
 
-        <a href="https://max-booking-bot-k3dx.onrender.com/webhook/book?product={safe_product}"
+        <a href="https://max-booking-bot-k3dx.onrender.com/book?product={safe_product}"
            style="display:inline-block;padding:15px 25px;background:green;color:white;
            text-decoration:none;border-radius:10px;font-size:18px;">
            🟢 Забронировать в MAX
