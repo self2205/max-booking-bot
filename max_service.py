@@ -88,11 +88,26 @@ def get_max_message(mid):
 # КАРТИНКА ИЗ WEBHOOK
 # =========================
 def extract_image_from_webhook(message):
+
     body = message.get("body", {})
 
-    for a in body.get("attachments", []):
-        if a.get("type") == "image":
-            return a.get("payload", {}).get("url")
+    attachments = body.get("attachments", [])
+
+    for a in attachments:
+
+        if a.get("type") != "image":
+            continue
+
+        payload = a.get("payload", {})
+
+        if payload.get("url"):
+            return payload.get("url")
+
+        if payload.get("image", {}).get("url"):
+            return payload["image"]["url"]
+
+        if payload.get("image_url"):
+            return payload.get("image_url")
 
     return None
 
