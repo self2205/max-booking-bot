@@ -2,7 +2,7 @@ import requests
 import urllib.parse
 import re
 
-from config import TG_TOKEN, TG_CHANNEL_CHAT_ID
+from config import TG_TOKEN, TG_CHAT_ID, TG_CHANNEL_CHAT_ID
 from database import change_status, get_bookings
 
 ADMIN_TG_ID = 441725473
@@ -76,7 +76,7 @@ def send_to_telegram(product, name, phone, image_url=None):
             requests.post(
                 url,
                 data={
-                    "chat_id": TG_CHANNEL_CHAT_ID,
+                    "chat_id": TG_CHAT_ID,
                     "photo": image_url,
                     "caption": text
                 },
@@ -89,7 +89,7 @@ def send_to_telegram(product, name, phone, image_url=None):
             requests.post(
                 url,
                 data={
-                    "chat_id": TG_CHANNEL_CHAT_ID,
+                    "chat_id": TG_CHAT_ID,
                     "text": text
                 },
                 timeout=15
