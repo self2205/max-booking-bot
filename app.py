@@ -207,7 +207,7 @@ async def webhook(request: Request):
 
         send_message_max(
             chat_id,
-            f"✅ Заявка создана!\n\nID: {booking_id}"
+            f"✅ Заявка на бронирование создана! Наш менеджер свяжется с вами в ближайшее время.\n\nID: {booking_id}"
         )
 
         return {"ok": True}
