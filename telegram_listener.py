@@ -11,9 +11,6 @@ API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
 offset = None
 
 
-# ==========================
-# GET TELEGRAM UPDATES
-# ==========================
 
 def get_updates():
 
@@ -31,28 +28,44 @@ def get_updates():
 
 
 
-    response = requests.get(
+    try:
 
-        f"{API_URL}/getUpdates",
+        response = requests.get(
 
-        params=params,
+            f"{API_URL}/getUpdates",
 
-        timeout=35
+            params=params,
 
-    )
+            timeout=35
 
-
-    return response.json()
-
+        )
 
 
-# ==========================
-# PROCESS MESSAGES
-# ==========================
+        return response.json()
+
+
+    except Exception as e:
+
+        print(
+            "GET UPDATES ERROR:",
+            e,
+            flush=True
+        )
+
+        return {}
+
+
+
 
 def process_updates():
 
     global offset
+
+
+    print(
+        "CHECKING TELEGRAM UPDATES",
+        flush=True
+    )
 
 
     data = get_updates()
@@ -85,9 +98,13 @@ def process_updates():
         )
 
 
-        # пропускаем сообщения без фото
 
         if not photo:
+
+            print(
+                "MESSAGE WITHOUT PHOTO SKIPPED",
+                flush=True
+            )
 
             continue
 
@@ -104,59 +121,65 @@ def process_updates():
 
 
 
-        file_id = photo[-1].get(
-            "file_id"
-        )
-
-
-
-        if not file_id:
-
-            continue
+        file_id = photo[-1]["file_id"]
 
 
 
         print(
-            "========== NEW TELEGRAM POST =========="
+            "NEW POST:",
+            product,
+            flush=True
         )
+
 
 
         print(
-            "PRODUCT:",
-            product
-        )
-
-
-        print(
-            "PHOTO:",
-            file_id
-        )
-
-
-        print(
-            "========================================"
+            "PHOTO FILE ID:",
+            file_id,
+            flush=True
         )
 
 
 
-        send_post(
-
-            product=product,
-
-            image_url=file_id
-
-        )
+        try:
 
 
+            result = send_post(
 
-# ==========================
-# BACKGROUND WORKER
-# ==========================
+                product=product,
+
+                image_url=file_id
+
+            )
+
+
+            print(
+                "POST RESULT:",
+                result,
+                flush=True
+            )
+
+
+
+        except Exception as e:
+
+
+            print(
+                "SEND POST ERROR:",
+                e,
+                flush=True
+            )
+
+
+
+
 
 def start_listener():
 
+
     print(
-        "TELEGRAM LISTENER STARTED"
+        "STARTING TELEGRAM LISTENER",
+        flush=True
     )
 
 
@@ -172,8 +195,9 @@ def start_listener():
 
 
             print(
-                "TELEGRAM LISTENER ERROR:",
-                e
+                "LISTENER ERROR:",
+                e,
+                flush=True
             )
 
 
