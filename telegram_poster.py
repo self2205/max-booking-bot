@@ -1,6 +1,9 @@
 import json
 import base64
 import requests
+import uuid
+
+from database import save_product
 
 from config import (
     TG_POST_TOKEN,
