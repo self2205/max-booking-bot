@@ -2,7 +2,7 @@ import time
 import requests
 
 from config import TG_POST_TOKEN
-from telegram_poster import send_post_album
+from telegram_poster import send_post
 
 
 API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
@@ -10,6 +10,8 @@ API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
 
 offset = None
 
+
+# хранилище альбомов
 albums = {}
 
 
@@ -18,21 +20,32 @@ def get_updates():
 
     global offset
 
+
     params = {
         "timeout": 30
     }
 
+
     if offset:
+
         params["offset"] = offset
 
 
+
     r = requests.get(
+
         f"{API_URL}/getUpdates",
+
         params=params,
+
         timeout=35
+
     )
 
+
     return r.json()
+
+
 
 
 
@@ -54,6 +67,7 @@ def process_updates():
 
 
         if not message:
+
             continue
 
 
@@ -62,6 +76,7 @@ def process_updates():
 
 
         if not photo:
+
             continue
 
 
@@ -70,6 +85,7 @@ def process_updates():
             "caption",
             "Товар"
         )
+
 
 
         file_id = photo[-1]["file_id"]
@@ -82,19 +98,26 @@ def process_updates():
 
 
 
-        # ==========================
-        # ЕСЛИ ЭТО АЛЬБОМ
-        # ==========================
+        # ==================================
+        # АЛЬБОМ
+        # ==================================
 
         if media_group_id:
 
 
             if media_group_id not in albums:
 
+
                 albums[media_group_id] = {
+
                     "photos": [],
-                    "caption": caption
+
+                    "caption": caption,
+
+                    "time": time.time()
+
                 }
+
 
 
             albums[media_group_id]["photos"].append(
@@ -102,35 +125,69 @@ def process_updates():
             )
 
 
+            albums[media_group_id]["time"] = time.time()
+
+
+
             print(
-                "ADD PHOTO TO ALBUM",
-                media_group_id
-            )
 
+                "ADD PHOTO TO ALBUM:",
 
-        else:
+                media_group_id,
 
+                len(
+                    albums[media_group_id]["photos"]
+                ),
 
-            send_post_album(
-
-                product=caption,
-
-                photos=[file_id]
+                flush=True
 
             )
 
 
+            continue
 
-    # отправляем накопленные альбомы
+
+
+
+
+        # ==================================
+        # ОДНО ФОТО
+        # ==================================
+
+        print(
+
+            "NEW SINGLE POST:",
+
+            caption,
+
+            flush=True
+
+        )
+
+
+        send_post(
+
+            product=caption,
+
+            image_url=file_id
+
+        )
+
+
+
 
     send_albums()
+
+
+
 
 
 
 def send_albums():
 
 
-    global albums
+    now = time.time()
+
 
 
     for album_id in list(albums.keys()):
@@ -139,23 +196,48 @@ def send_albums():
         album = albums[album_id]
 
 
-        # ждём пока Telegram пришлёт все фото
 
-        if len(album["photos"]) < 2:
+        # ждём пока придут все фото
+
+        if now - album["time"] < 2:
+
+
             continue
 
 
 
-        send_post_album(
 
-            product=album["caption"],
+        print(
 
-            photos=album["photos"]
+            "SEND ALBUM:",
+
+            album["caption"],
+
+            "PHOTOS:",
+
+            len(album["photos"]),
+
+            flush=True
 
         )
 
 
+
+        send_post(
+
+            product=album["caption"],
+
+            image_url=album["photos"]
+
+        )
+
+
+
         del albums[album_id]
+
+
+
+
 
 
 
@@ -165,15 +247,24 @@ while True:
 
     try:
 
+
         process_updates()
+
 
 
     except Exception as e:
 
+
         print(
+
             "ERROR:",
-            e
+
+            e,
+
+            flush=True
+
         )
 
 
-    time.sleep(3)
+
+    time.sleep(1)
