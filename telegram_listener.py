@@ -1,17 +1,11 @@
 import time
 import requests
 
-from config import (
-    TG_POST_TOKEN,
-    TG_TOKEN,
-    ADMIN_IDS
-)
-
+from config import TG_POST_TOKEN, ADMIN_IDS
 from telegram_poster import send_post
 
 
-POST_API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
-
+API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
 
 
 offset = None
@@ -42,7 +36,7 @@ def get_updates():
 
         response = requests.get(
 
-            f"{POST_API_URL}/getUpdates",
+            f"{API_URL}/getUpdates",
 
             params=params,
 
@@ -57,170 +51,13 @@ def get_updates():
 
     except Exception as e:
 
-
         print(
             "GET UPDATES ERROR:",
             e,
             flush=True
         )
 
-
         return {}
-
-
-
-
-
-# ==========================
-# ПЕРЕНОС ФОТО НА ВТОРОГО БОТА
-# ==========================
-
-def transfer_photo(file_id):
-
-    try:
-
-
-        # получаем путь файла у TG_POST_TOKEN
-
-        file_info = requests.get(
-
-            f"{POST_API_URL}/getFile",
-
-            params={
-                "file_id": file_id
-            },
-
-            timeout=15
-
-        ).json()
-
-
-
-        if not file_info.get("ok"):
-
-
-            print(
-                "GET FILE ERROR:",
-                file_info,
-                flush=True
-            )
-
-
-            return None
-
-
-
-
-        file_path = file_info["result"]["file_path"]
-
-
-
-
-        # скачиваем фото первым ботом
-
-        photo_response = requests.get(
-
-            f"https://api.telegram.org/file/bot{TG_POST_TOKEN}/{file_path}",
-
-            timeout=30
-
-        )
-
-
-
-        photo_response.raise_for_status()
-
-
-
-        photo_bytes = photo_response.content
-
-
-
-
-
-        # отправляем фото второму боту
-
-        upload = requests.post(
-
-            f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
-
-            data={
-
-                "chat_id": ADMIN_IDS[0]
-
-            },
-
-            files={
-
-                "photo": photo_bytes
-
-            },
-
-            timeout=30
-
-        ).json()
-
-
-
-
-
-        if not upload.get("ok"):
-
-
-            print(
-
-                "UPLOAD PHOTO ERROR:",
-
-                upload,
-
-                flush=True
-
-            )
-
-
-            return None
-
-
-
-
-
-        new_file_id = upload["result"]["photo"][-1]["file_id"]
-
-
-
-        print(
-
-            "NEW FILE ID:",
-
-            new_file_id,
-
-            flush=True
-
-        )
-
-
-
-        return new_file_id
-
-
-
-
-    except Exception as e:
-
-
-        print(
-
-            "TRANSFER PHOTO ERROR:",
-
-            e,
-
-            flush=True
-
-        )
-
-
-        return None
-
 
 
 
@@ -235,15 +72,10 @@ def process_updates():
     global offset
 
 
-
     print(
-
         "CHECKING TELEGRAM UPDATES",
-
         flush=True
-
     )
-
 
 
     data = get_updates()
@@ -251,13 +83,9 @@ def process_updates():
 
 
     for update in data.get(
-
         "result",
-
         []
-
     ):
-
 
 
         offset = update["update_id"] + 1
@@ -265,11 +93,8 @@ def process_updates():
 
 
         message = update.get(
-
             "message"
-
         )
-
 
 
         if not message:
@@ -278,22 +103,25 @@ def process_updates():
 
 
 
+        # ==========================
+        # ПРОВЕРКА АДМИНА
+        # ==========================
 
-        user_id = message["from"]["id"]
-
+        user_id = message.get(
+            "from",
+            {}
+        ).get(
+            "id"
+        )
 
 
         if user_id not in ADMIN_IDS:
 
 
             print(
-
                 "UNAUTHORIZED USER:",
-
                 user_id,
-
                 flush=True
-
             )
 
 
@@ -304,24 +132,17 @@ def process_updates():
 
 
         photo = message.get(
-
             "photo"
-
         )
 
 
 
         if not photo:
 
-
             print(
-
-                "MESSAGE WITHOUT PHOTO",
-
+                "MESSAGE WITHOUT PHOTO SKIPPED",
                 flush=True
-
             )
-
 
             continue
 
@@ -330,11 +151,8 @@ def process_updates():
 
 
         caption = message.get(
-
             "caption",
-
             ""
-
         )
 
 
@@ -344,61 +162,27 @@ def process_updates():
 
 
 
-        old_file_id = photo[-1]["file_id"]
 
+        # ==========================
+        # БЕРЁМ PHOTO FILE ID
+        # ==========================
 
-
-
-
-        print(
-
-            "OLD FILE ID:",
-
-            old_file_id,
-
-            flush=True
-
-        )
-
-
-
-
-
-        new_file_id = transfer_photo(
-
-            old_file_id
-
-        )
-
-
-
-
-        if not new_file_id:
-
-
-            print(
-
-                "PHOTO TRANSFER FAILED",
-
-                flush=True
-
-            )
-
-
-            continue
-
-
+        file_id = photo[-1]["file_id"]
 
 
 
         print(
-
             "NEW POST:",
-
             product,
-
             flush=True
+        )
 
+
+
+        print(
+            "PHOTO FILE ID:",
+            file_id,
+            flush=True
         )
 
 
@@ -408,25 +192,20 @@ def process_updates():
         try:
 
 
-
             result = send_post(
 
                 product=product,
 
-                image_url=new_file_id
+                image_url=file_id
 
             )
 
 
 
             print(
-
                 "POST RESULT:",
-
                 result,
-
                 flush=True
-
             )
 
 
@@ -436,13 +215,9 @@ def process_updates():
 
 
             print(
-
                 "SEND POST ERROR:",
-
                 e,
-
                 flush=True
-
             )
 
 
@@ -451,18 +226,15 @@ def process_updates():
 
 
 # ==========================
-# START
+# ЗАПУСК
 # ==========================
 
 def start_listener():
 
 
     print(
-
         "STARTING TELEGRAM LISTENER",
-
         flush=True
-
     )
 
 
@@ -480,13 +252,9 @@ def start_listener():
 
 
             print(
-
                 "LISTENER ERROR:",
-
                 e,
-
                 flush=True
-
             )
 
 
