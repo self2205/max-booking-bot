@@ -1,8 +1,4 @@
-from database import (
-    save_booking,
-    get_product
-)
-
+from database import save_booking
 from telegram_service import send_to_telegram
 
 
@@ -11,49 +7,10 @@ def create_booking(
         product,
         name,
         phone,
-        image_url=None
+        image_url=None,
+        channel_message_id=None
 ):
-    """
-    Создает заявку:
-    - сохраняет в PostgreSQL
-    - отправляет в Telegram админам с фото из канала
-    """
 
-
-
-    # ==========================
-    # ИЩЕМ ПОСТ В КАНАЛЕ
-    # ==========================
-
-    channel_message_id = None
-
-
-    try:
-
-        rows = get_product_by_name(product)
-
-
-        if rows:
-
-            channel_message_id = rows.get(
-                "channel_message_id"
-            )
-
-
-    except Exception as e:
-
-        print(
-            "GET CHANNEL MESSAGE ERROR:",
-            e
-        )
-
-
-
-
-
-    # ==========================
-    # СОХРАНЯЕМ ЗАЯВКУ
-    # ==========================
 
     booking_id = save_booking(
 
@@ -69,12 +26,6 @@ def create_booking(
 
 
 
-
-
-    # ==========================
-    # ОТПРАВЛЯЕМ АДМИНАМ
-    # ==========================
-
     send_to_telegram(
 
         product=product,
@@ -88,8 +39,6 @@ def create_booking(
         channel_message_id=channel_message_id
 
     )
-
-
 
 
 
