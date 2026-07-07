@@ -43,15 +43,25 @@ app = FastAPI()
 @app.on_event("startup")
 def startup_event():
 
-    print("STARTING TELEGRAM LISTENER")
+    print(
+        "🔥 STARTING TELEGRAM LISTENER",
+        flush=True
+    )
+
 
     thread = threading.Thread(
         target=start_listener,
-        daemon=True
+        daemon=False
     )
+
 
     thread.start()
 
+
+    print(
+        "🔥 TELEGRAM LISTENER STARTED",
+        flush=True
+    )
 
 # ==========================
 # ROUTERS
