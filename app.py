@@ -2,11 +2,13 @@ from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
+from routers.max_webhook import router as max_router
 
 import secrets
 import base64
 import json
 import requests
+
 
 
 from config import *
