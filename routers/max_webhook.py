@@ -16,8 +16,6 @@ from booking_service import create_booking
 
 from max_service import send_message_max
 
-from telegram_notify import send_booking_notification
-
 
 router = APIRouter()
 
