@@ -3,6 +3,7 @@ import json
 from fastapi import APIRouter, Request
 
 from config import *
+
 from states import (
     get_state,
     set_state,
@@ -14,6 +15,7 @@ from database import get_product
 from booking_service import create_booking
 
 from max_service import send_message_max
+
 from telegram_notify import send_booking_notification
 
 
@@ -52,7 +54,7 @@ async def max_webhook(request: Request):
 
 
     # ==========================
-    # ЗАПУСК БОТА ПО КНОПКЕ
+    # ЗАПУСК ПО КНОПКЕ
     # ==========================
 
     if update_type == "bot_started":
@@ -87,11 +89,13 @@ async def max_webhook(request: Request):
         )
 
 
+
         if product_data:
 
             product = product_data["product"]
 
             image_url = product_data["image_url"]
+
 
         else:
 
@@ -118,17 +122,23 @@ async def max_webhook(request: Request):
 
 
             set_state(
+
                 user_id,
+
                 "WAIT_NAME",
+
                 {
                     "product": product,
                     "image_url": image_url
                 }
+
             )
 
 
             send_message_max(
+
                 chat_id,
+
                 f"""
 🟢 Бронирование
 
@@ -136,22 +146,31 @@ async def max_webhook(request: Request):
 
 ✍️ Введите ваше имя
 """
+
             )
+
 
 
         else:
 
 
             set_state(
+
                 user_id,
+
                 "WAIT_PRODUCT",
+
                 {}
+
             )
 
 
             send_message_max(
+
                 chat_id,
+
                 "👋 Привет!\n\nЧто хотите забронировать?"
+
             )
 
 
@@ -164,7 +183,7 @@ async def max_webhook(request: Request):
 
 
     # ==========================
-    # ОБРАБОТКА СООБЩЕНИЙ
+    # СООБЩЕНИЯ
     # ==========================
 
     if update_type != "message_created":
@@ -216,6 +235,7 @@ async def max_webhook(request: Request):
 
 
 
+
     # ==========================
     # ИМЯ
     # ==========================
@@ -226,17 +246,27 @@ async def max_webhook(request: Request):
         state["data"]["name"] = text
 
 
+
         set_state(
+
             user_id,
+
             "WAIT_PHONE",
+
             state["data"]
+
         )
+
 
 
         send_message_max(
+
             chat_id,
+
             "📞 Введите ваш телефон"
+
         )
+
 
 
         return {
@@ -253,11 +283,42 @@ async def max_webhook(request: Request):
     if state and state["state"] == "WAIT_PHONE":
 
 
+
         state["data"]["phone"] = text
 
 
 
+
         booking_id = create_booking(
+
+            product=state["data"]["product"],
+
+            name=state["data"]["name"],
+
+            phone=state["data"]["phone"],
+
+            image_url=state["data"].get(
+                "image_url"
+            )
+
+        )
+
+
+
+        print(
+            "BOOKING CREATED:",
+            booking_id
+        )
+
+
+
+        # ==========================
+        # ОТПРАВКА В TELEGRAM
+        # ==========================
+
+        send_booking_notification(
+
+            booking_id=booking_id,
 
             product=state["data"]["product"],
 
@@ -280,14 +341,18 @@ async def max_webhook(request: Request):
 
 
         send_message_max(
+
             chat_id,
+
             f"""
 ✅ Заявка создана!
 
 Номер:
 #{booking_id}
 """
+
         )
+
 
 
         return {
