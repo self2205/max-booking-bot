@@ -1,7 +1,7 @@
 import requests
 
 from config import (
-    TG_POST_TOKEN,
+    TG_TOKEN,
     TG_CHAT_ID
 )
 
