@@ -217,19 +217,22 @@ async def webhook(request: Request):
         )
 
 
-        decoded = decode_payload(
+                product_data = get_product(
             payload
         )
 
 
-        product = decoded.get(
-            "product"
-        )
+        if product_data:
 
+            product = product_data["product"]
 
-        image_url = decoded.get(
-            "image_url"
-        )
+            image_url = product_data["image_url"]
+
+        else:
+
+            product = None
+
+            image_url = None
 
 
 
