@@ -1,8 +1,8 @@
 import requests
 
 from config import (
-    TG_ADMIN_CHAT_ID,
-    TG_POST_TOKEN
+    TG_POST_TOKEN,
+    TG_CHAT_ID
 )
 
 
@@ -17,7 +17,6 @@ def send_booking_notification(
         phone,
         image_url=None
 ):
-
 
     text = f"""
 🟢 НОВАЯ ЗАЯВКА
@@ -36,22 +35,16 @@ def send_booking_notification(
 
     try:
 
-
         if image_url:
-
 
             response = requests.post(
 
                 f"{API_URL}/sendPhoto",
 
                 json={
-
-                    "chat_id": TG_ADMIN_CHAT_ID,
-
+                    "chat_id": TG_CHAT_ID,
                     "photo": image_url,
-
                     "caption": text
-
                 },
 
                 timeout=20
@@ -61,17 +54,13 @@ def send_booking_notification(
 
         else:
 
-
             response = requests.post(
 
                 f"{API_URL}/sendMessage",
 
                 json={
-
-                    "chat_id": TG_ADMIN_CHAT_ID,
-
+                    "chat_id": TG_CHAT_ID,
                     "text": text
-
                 },
 
                 timeout=20
@@ -98,11 +87,9 @@ def send_booking_notification(
 
     except Exception as e:
 
-
         print(
             "TELEGRAM NOTIFY ERROR:",
             e
         )
-
 
         return {}
