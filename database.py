@@ -1,425 +1,449 @@
-import requests
+import os
+import psycopg2
 
-from config import (
-    TG_TOKEN,
-    ADMIN_IDS,
-    TG_CHANNEL_CHAT_ID
-)
+from psycopg2.extras import RealDictCursor
 
-from database import (
-    change_status,
-    get_bookings,
-    get_product_by_name
-)
+
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 
-API_URL = (
-    f"https://api.telegram.org/bot{TG_TOKEN}"
-)
+def get_connection():
 
-
-
-# ==================================
-# ПОЛУЧЕНИЕ ФОТО ИЗ КАНАЛА
-# ==================================
-
-def get_channel_photo(message_id):
-
-    try:
-
-        response = requests.get(
-
-            f"{API_URL}/getChat",
-
-            params={
-                "chat_id": TG_CHANNEL_CHAT_ID
-            },
-
-            timeout=10
-
-        )
-
-
-        # фото достаем через forwardMessage
-        # поэтому возвращаем message_id
-
-        return message_id
-
-
-    except Exception as e:
-
-        print(
-            "GET CHANNEL PHOTO ERROR:",
-            e,
-            flush=True
-        )
-
-        return None
+    return psycopg2.connect(
+        DATABASE_URL,
+        cursor_factory=RealDictCursor
+    )
 
 
 
 
-# ==================================
-# ОТПРАВКА ЗАЯВКИ АДМИНАМ
-# ==================================
 
-def send_to_telegram(
+# ==========================
+# INIT DATABASE
+# ==========================
+
+def init_db():
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+
+
+    # ======================
+    # BOOKINGS
+    # ======================
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS bookings (
+
+            id SERIAL PRIMARY KEY,
+
+            product TEXT NOT NULL,
+
+            name TEXT NOT NULL,
+
+            phone TEXT NOT NULL,
+
+            image_url TEXT,
+
+            status TEXT DEFAULT '🟢 Новая',
+
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+        );
+    """)
+
+
+
+    cur.execute("""
+        ALTER TABLE bookings
+        ADD COLUMN IF NOT EXISTS image_url TEXT;
+    """)
+
+
+
+
+
+    # ======================
+    # PRODUCTS
+    # ======================
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS products (
+
+            id TEXT PRIMARY KEY,
+
+            product TEXT NOT NULL,
+
+            image_url TEXT,
+
+            channel_message_id INTEGER,
+
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+        );
+    """)
+
+
+
+    cur.execute("""
+        ALTER TABLE products
+        ADD COLUMN IF NOT EXISTS channel_message_id INTEGER;
+    """)
+
+
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+
+
+
+
+
+# ==========================
+# SAVE BOOKING
+# ==========================
+
+def save_booking(
         product,
         name,
         phone,
         image_url=None
 ):
 
-
-    text = f"""
-📦 НОВАЯ ЗАЯВКА НА БРОНИРОВАНИЕ
-
-
-🛍 Товар:
-{product}
-
-
-👤 Имя:
-{name}
-
-
-📞 Телефон:
-{phone}
-"""
+    conn = get_connection()
+    cur = conn.cursor()
 
 
 
-    channel_message_id = None
-
-
-
-    # ищем сообщение товара
-
-    try:
-
-        product_data = get_product_by_name(
-            product
+    cur.execute("""
+        INSERT INTO bookings
+        (
+            product,
+            name,
+            phone,
+            image_url
         )
 
+        VALUES (%s,%s,%s,%s)
 
-        if product_data:
+        RETURNING id
 
-            channel_message_id = (
-                product_data["channel_message_id"]
-            )
+    """,
+    (
+        product,
+        name,
+        phone,
+        image_url
+    ))
 
 
-    except Exception as e:
 
-        print(
-            "PRODUCT SEARCH ERROR:",
-            e,
-            flush=True
-        )
+    booking = cur.fetchone()
 
 
 
+    conn.commit()
 
-    for admin_id in ADMIN_IDS:
+    cur.close()
+    conn.close()
 
 
-        try:
 
-
-            # =========================
-            # ЕСЛИ ЕСТЬ ФОТО В КАНАЛЕ
-            # =========================
-
-            if channel_message_id:
-
-
-                response = requests.post(
-
-                    f"{API_URL}/forwardMessage",
-
-                    data={
-
-                        "chat_id": admin_id,
-
-                        "from_chat_id": TG_CHANNEL_CHAT_ID,
-
-                        "message_id": channel_message_id
-
-                    },
-
-                    timeout=15
-
-                )
-
-
-                print(
-                    "FORWARD PHOTO:",
-                    response.text,
-                    flush=True
-                )
-
-
-
-                # после фото отправляем описание
-
-                requests.post(
-
-                    f"{API_URL}/sendMessage",
-
-                    data={
-
-                        "chat_id": admin_id,
-
-                        "text": text
-
-                    },
-
-                    timeout=15
-
-                )
-
-
-            else:
-
-
-                response = requests.post(
-
-                    f"{API_URL}/sendMessage",
-
-                    data={
-
-                        "chat_id": admin_id,
-
-                        "text": text
-
-                    },
-
-                    timeout=15
-
-                )
-
-
-                print(
-                    "SEND TEXT:",
-                    response.text,
-                    flush=True
-                )
-
-
-
-
-        except Exception as e:
-
-
-            print(
-                "TELEGRAM SEND ERROR:",
-                e,
-                flush=True
-            )
-
-
-
-
-
-# ==================================
-# ПОСТ В КАНАЛ
-# ==================================
-
-def send_to_channel(product):
-
-
-    try:
-
-        response = requests.post(
-
-            f"{API_URL}/sendMessage",
-
-            json={
-
-                "chat_id": TG_CHANNEL_CHAT_ID,
-
-                "text": product
-
-            },
-
-            timeout=15
-
-        )
-
-
-        print(
-            "CHANNEL POST:",
-            response.text,
-            flush=True
-        )
-
-
-        return response.json()
-
-
-
-    except Exception as e:
-
-
-        print(
-            "CHANNEL ERROR:",
-            e,
-            flush=True
-        )
-
-
-
-
-# ==================================
-# ADMIN COMMANDS
-# ==================================
-
-def handle_admin_commands(message, send_func):
-
-
-    text = message.get(
-        "text",
-        ""
+    print(
+        f"✅ Заявка №{booking['id']} сохранена"
     )
 
 
-    user_id = message.get(
-        "from",
-        {}
-    ).get(
-        "id"
-    )
+    return booking["id"]
 
 
-    if user_id not in ADMIN_IDS:
+
+
+
+
+# ==========================
+# GET BOOKINGS
+# ==========================
+
+def get_bookings():
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+
+
+    cur.execute("""
+        SELECT
+
+            id,
+            product,
+            name,
+            phone,
+            image_url,
+            status,
+            created_at
+
+        FROM bookings
+
+        ORDER BY id DESC
+
+    """)
+
+
+
+    rows = cur.fetchall()
+
+
+
+    cur.close()
+    conn.close()
+
+
+    return rows
+
+
+
+
+
+
+# ==========================
+# CHANGE STATUS
+# ==========================
+
+def change_status(booking_id):
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+
+
+    cur.execute("""
+        SELECT status
+
+        FROM bookings
+
+        WHERE id=%s
+
+    """,
+    (
+        booking_id,
+    ))
+
+
+
+    booking = cur.fetchone()
+
+
+
+    if not booking:
+
+        cur.close()
+        conn.close()
 
         return
 
 
 
-    if text.startswith("/status"):
+
+    if booking["status"] == "🟢 Новая":
+
+        new_status = "🟡 В работе"
 
 
-        try:
+    elif booking["status"] == "🟡 В работе":
 
-            booking_id = int(
-                text.split()[1]
-            )
+        new_status = "✅ Выполнена"
 
-        except:
 
-            send_func(
-                "❌ Используй: /status 12"
-            )
+    else:
 
-            return
+        new_status = "🟢 Новая"
 
 
 
-        change_status(
-            booking_id
+
+
+    cur.execute("""
+        UPDATE bookings
+
+        SET status=%s
+
+        WHERE id=%s
+
+    """,
+    (
+        new_status,
+        booking_id
+    ))
+
+
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+
+
+
+
+
+
+# =================================================
+# PRODUCTS FOR MAX
+# =================================================
+
+
+
+# ==========================
+# SAVE PRODUCT
+# ==========================
+
+def save_product(
+        product_id,
+        product,
+        image_url=None,
+        channel_message_id=None
+):
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+
+
+    cur.execute("""
+        INSERT INTO products
+        (
+            id,
+            product,
+            image_url,
+            channel_message_id
         )
 
-
-        send_func(
-            f"✅ Статус заявки #{booking_id} обновлён"
-        )
+        VALUES (%s,%s,%s,%s)
 
 
+        ON CONFLICT(id)
 
-    elif text == "/list":
-
-
-        rows = get_bookings()
+        DO UPDATE SET
 
 
-        msg = (
-            "📋 Последние заявки\n\n"
-        )
+            product = EXCLUDED.product,
 
+            image_url = EXCLUDED.image_url,
 
-        for r in rows[:10]:
+            channel_message_id = EXCLUDED.channel_message_id
 
-            msg += (
-                f"#{r['id']} | "
-                f"{r['product']} | "
-                f"{r['status']}\n"
-            )
-
-
-        send_func(msg)
+    """,
+    (
+        product_id,
+        product,
+        image_url,
+        channel_message_id
+    ))
 
 
 
+    conn.commit()
 
-
-# ==================================
-# ГЕНЕРАТОР ПОСТОВ
-# ==================================
-
-def handle_post_generator(message, send_func):
-
-
-    user_id = message.get(
-        "from",
-        {}
-    ).get(
-        "id"
-    )
-
-
-    if user_id not in ADMIN_IDS:
-
-        return False
-
-
-
-    text = message.get(
-        "text",
-        ""
-    ).strip()
-
-
-
-    if not text or text.startswith("/"):
-
-        return False
-
-
-
-    send_to_channel(
-        text
-    )
-
-
-    send_func(
-        "✅ Пост опубликован"
-    )
-
-
-    return True
+    cur.close()
+    conn.close()
 
 
 
 
 
-# ==================================
-# DISPATCHER
-# ==================================
 
-def handle_message(message, send_func):
+# ==========================
+# GET PRODUCT BY ID
+# ==========================
 
+def get_product(product_id):
 
-    handle_admin_commands(
-        message,
-        send_func
-    )
+    conn = get_connection()
+    cur = conn.cursor()
 
 
-    if handle_post_generator(
-        message,
-        send_func
-    ):
 
-        return
+    cur.execute("""
+        SELECT
+
+            id,
+            product,
+            image_url,
+            channel_message_id
+
+        FROM products
+
+        WHERE id=%s
+
+    """,
+    (
+        product_id,
+    ))
+
+
+
+    result = cur.fetchone()
+
+
+
+    cur.close()
+    conn.close()
+
+
+    return result
+
+
+
+
+
+
+# ==========================
+# GET PRODUCT BY NAME
+# ==========================
+
+def get_product_by_name(product):
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+
+
+    cur.execute("""
+        SELECT
+
+            id,
+            product,
+            image_url,
+            channel_message_id
+
+        FROM products
+
+        WHERE product=%s
+
+        ORDER BY created_at DESC
+
+        LIMIT 1
+
+    """,
+    (
+        product,
+    ))
+
+
+
+    result = cur.fetchone()
+
+
+
+    cur.close()
+    conn.close()
+
+
+    return result
