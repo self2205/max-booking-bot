@@ -11,10 +11,14 @@ API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
 offset = None
 
 
-# хранилище альбомов
+# хранение альбомов
 albums = {}
 
 
+
+# ==================================
+# GET UPDATES
+# ==================================
 
 def get_updates():
 
@@ -49,6 +53,10 @@ def get_updates():
 
 
 
+# ==================================
+# ОБРАБОТКА UPDATE
+# ==================================
+
 def process_updates():
 
     global offset
@@ -57,10 +65,12 @@ def process_updates():
     data = get_updates()
 
 
+
     for update in data.get("result", []):
 
 
         offset = update["update_id"] + 1
+
 
 
         message = update.get("message")
@@ -81,14 +91,18 @@ def process_updates():
 
 
 
+        file_id = photo[-1]["file_id"]
+
+
+
         caption = message.get(
-            "caption",
-            "Товар"
+            "caption"
         )
 
 
+        if not caption:
 
-        file_id = photo[-1]["file_id"]
+            caption = "Товар"
 
 
 
@@ -110,9 +124,19 @@ def process_updates():
 
                 albums[media_group_id] = {
 
+
+                    # все фото для канала
+
                     "photos": [],
 
+
+                    # первое фото для базы
+
+                    "preview": file_id,
+
+
                     "caption": caption,
+
 
                     "time": time.time()
 
@@ -120,9 +144,15 @@ def process_updates():
 
 
 
-            albums[media_group_id]["photos"].append(
-                file_id
-            )
+            # добавляем фото в альбом
+
+            if file_id not in albums[media_group_id]["photos"]:
+
+
+                albums[media_group_id]["photos"].append(
+                    file_id
+                )
+
 
 
             albums[media_group_id]["time"] = time.time()
@@ -131,7 +161,7 @@ def process_updates():
 
             print(
 
-                "ADD PHOTO TO ALBUM:",
+                "ADD ALBUM PHOTO:",
 
                 media_group_id,
 
@@ -144,6 +174,7 @@ def process_updates():
             )
 
 
+
             continue
 
 
@@ -151,7 +182,7 @@ def process_updates():
 
 
         # ==================================
-        # ОДНО ФОТО
+        # ОДИНОЧНОЕ ФОТО
         # ==================================
 
         print(
@@ -163,6 +194,7 @@ def process_updates():
             flush=True
 
         )
+
 
 
         send_post(
@@ -183,6 +215,11 @@ def process_updates():
 
 
 
+
+# ==================================
+# ОТПРАВКА АЛЬБОМА
+# ==================================
+
 def send_albums():
 
 
@@ -197,12 +234,13 @@ def send_albums():
 
 
 
-        # ждём пока придут все фото
+        # ждём пока Telegram пришлёт все фото
 
-        if now - album["time"] < 2:
+        if now - album["time"] < 5:
 
 
             continue
+
 
 
 
@@ -213,7 +251,7 @@ def send_albums():
 
             album["caption"],
 
-            "PHOTOS:",
+            "COUNT:",
 
             len(album["photos"]),
 
@@ -227,7 +265,9 @@ def send_albums():
 
             product=album["caption"],
 
-            image_url=album["photos"]
+            image_url=album["photos"],
+
+            preview_image=album["preview"]
 
         )
 
@@ -238,19 +278,37 @@ def send_albums():
 
 
 
+
+
+
+# ==================================
+# START LISTENER
+# ==================================
+
 def start_listener():
+
 
     while True:
 
+
         try:
+
             process_updates()
+
 
         except Exception as e:
 
+
             print(
+
                 "LISTENER ERROR:",
+
                 e,
+
                 flush=True
+
             )
+
+
 
         time.sleep(2)
