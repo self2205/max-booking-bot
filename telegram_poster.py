@@ -40,7 +40,6 @@ def encode_payload(data: dict):
 
 def create_max_button(product, image_url=None):
 
-
     payload = encode_payload(
         {
             "product": product,
@@ -72,9 +71,6 @@ def create_max_button(product, image_url=None):
         ]
 
     }
-
-
-
 # ==================================
 # ОТПРАВКА ПОСТА В КАНАЛ
 # ==================================
