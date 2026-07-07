@@ -1,18 +1,20 @@
 import requests
-import re
 
 from config import (
     TG_TOKEN,
     TG_CHANNEL_CHAT_ID,
-    ADMIN_IDS
+    ADMIN_IDS,
+    MAX_BOT_USERNAME
 )
 
 from database import change_status, get_bookings
 
 
+
 # ==========================
 # ОЧИСТКА ТОВАРА
 # ==========================
+
 def clean_product(text: str):
 
     if not text:
@@ -25,6 +27,7 @@ def clean_product(text: str):
 # ==========================
 # ОТПРАВКА ЗАЯВКИ АДМИНАМ
 # ==========================
+
 def send_to_telegram(product, name, phone, image_url=None):
 
     text = f"""📦 НОВАЯ ЗАЯВКА НА БРОНИРОВАНИЕ
@@ -40,71 +43,75 @@ def send_to_telegram(product, name, phone, image_url=None):
 """
 
 
-    try:
+    for admin_id in ADMIN_IDS:
 
-        for admin_id in ADMIN_IDS:
-
+        try:
 
             if image_url:
 
-                requests.post(
+                response = requests.post(
 
                     f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
 
                     data={
-
                         "chat_id": admin_id,
-
                         "photo": image_url,
-
                         "caption": text
-
                     },
 
                     timeout=15
-
                 )
 
 
             else:
 
-                requests.post(
+                response = requests.post(
 
                     f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
 
                     data={
-
                         "chat_id": admin_id,
-
                         "text": text
-
                     },
 
                     timeout=15
-
                 )
 
 
-    except Exception as e:
+            print(
+                "TELEGRAM ADMIN:",
+                admin_id,
+                flush=True
+            )
 
-        print(
-            "Telegram error:",
-            e
-        )
 
+            print(
+                response.text,
+                flush=True
+            )
+
+
+        except Exception as e:
+
+            print(
+                "TELEGRAM SEND ERROR:",
+                e,
+                flush=True
+            )
 
 
 
 # ==========================
 # ОТПРАВКА ПОСТА В КАНАЛ
 # ==========================
+
 def send_to_channel(product: str):
 
     product = clean_product(product)
 
 
     product_url = (
-        "https://max.ru/se13456903_bot?start=product_"
+        f"https://max.ru/{MAX_BOT_USERNAME}?start=product_"
         + requests.utils.quote(product)
     )
 
@@ -122,11 +129,8 @@ def send_to_channel(product: str):
                 [
 
                     {
-
                         "text": "🟢 Забронировать",
-
                         "url": product_url
-
                     }
 
                 ]
@@ -140,8 +144,7 @@ def send_to_channel(product: str):
 
     try:
 
-
-        resp = requests.post(
+        response = requests.post(
 
             f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
 
@@ -153,21 +156,18 @@ def send_to_channel(product: str):
 
 
         print(
-            "CHANNEL:",
-            resp.status_code
-        )
-
-
-        print(
-            resp.text
+            "CHANNEL RESPONSE:",
+            response.text,
+            flush=True
         )
 
 
     except Exception as e:
 
         print(
-            "Channel error:",
-            e
+            "CHANNEL ERROR:",
+            e,
+            flush=True
         )
 
 
@@ -175,12 +175,14 @@ def send_to_channel(product: str):
 # ==========================
 # ADMIN COMMANDS
 # ==========================
+
 def handle_admin_commands(message, send_func):
 
     text = message.get(
         "text",
         ""
     )
+
 
     user_id = message.get(
         "from",
@@ -241,13 +243,9 @@ def handle_admin_commands(message, send_func):
         for r in rows[:10]:
 
             msg += (
-
                 f"#{r['id']} | "
-
                 f"{r['product']} | "
-
                 f"{r['status']}\n"
-
             )
 
 
@@ -261,6 +259,7 @@ def handle_admin_commands(message, send_func):
 # ==========================
 # ГЕНЕРАТОР ПОСТОВ
 # ==========================
+
 def handle_post_generator(message, send_func):
 
     user_id = message.get(
@@ -296,7 +295,9 @@ def handle_post_generator(message, send_func):
 
 
 
-    send_to_channel(text)
+    send_to_channel(
+        text
+    )
 
 
     send_func(
@@ -308,10 +309,10 @@ def handle_post_generator(message, send_func):
 
 
 
-
 # ==========================
 # MAIN DISPATCHER
 # ==========================
+
 def handle_message(message, send_func):
 
     handle_admin_commands(
