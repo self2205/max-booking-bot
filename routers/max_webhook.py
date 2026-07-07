@@ -2,8 +2,6 @@ import json
 
 from fastapi import APIRouter, Request
 
-from config import *
-
 from states import (
     get_state,
     set_state,
@@ -89,25 +87,24 @@ async def max_webhook(request: Request):
 
 
 
+        product = None
+        image_url = None
+        channel_message_id = None
+
+
+
         if product_data:
 
 
             product = product_data["product"]
 
-            image_url = product_data["image_url"]
+            image_url = product_data.get(
+                "image_url"
+            )
 
-            channel_message_id = product_data["channel_message_id"]
-
-
-        else:
-
-
-            product = None
-
-            image_url = None
-
-            channel_message_id = None
-
+            channel_message_id = product_data.get(
+                "channel_message_id"
+            )
 
 
 
@@ -132,6 +129,7 @@ async def max_webhook(request: Request):
 
 
         if product:
+
 
 
             set_state(
@@ -169,7 +167,9 @@ async def max_webhook(request: Request):
             )
 
 
+
         else:
+
 
 
             set_state(
@@ -181,6 +181,7 @@ async def max_webhook(request: Request):
                 {}
 
             )
+
 
 
             send_message_max(
@@ -207,11 +208,9 @@ async def max_webhook(request: Request):
 
     if update_type != "message_created":
 
-
         return {
             "ok": True
         }
-
 
 
 
@@ -253,7 +252,6 @@ async def max_webhook(request: Request):
     state = get_state(
         user_id
     )
-
 
 
 
@@ -332,7 +330,6 @@ async def max_webhook(request: Request):
             channel_message_id=state["data"].get(
                 "channel_message_id"
             )
-
 
         )
 
