@@ -167,6 +167,9 @@ async def webhook(request: Request):
 
     data = await request.json()
 
+    print("ALL KEYS:", data.keys())
+    print("FULL DATA:", data)
+
 
     print("\n========== MAX WEBHOOK ==========")
     print(
