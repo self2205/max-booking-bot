@@ -17,6 +17,7 @@ API_URL = (
 )
 
 
+
 # ==================================
 # ENCODE PAYLOAD ДЛЯ MAX
 # ==================================
@@ -37,21 +38,13 @@ def encode_payload(data: dict):
 
 
 
+
+
 # ==================================
-# КНОПКА MAX
+# СОЗДАНИЕ КНОПКИ MAX
 # ==================================
 
-def create_max_button(product, image_url=None):
-
-
-    product_id = str(uuid.uuid4())[:8]
-
-
-    save_product(
-        product_id,
-        product,
-        image_url
-    )
+def create_max_button(product, product_id):
 
 
     max_url = (
@@ -77,6 +70,11 @@ def create_max_button(product, image_url=None):
         ]
 
     }
+
+
+
+
+
 # ==================================
 # ОТПРАВКА ПОСТА В КАНАЛ
 # ==================================
@@ -87,14 +85,24 @@ def send_post(
 ):
 
 
-    reply_markup = create_max_button(
-        product,
-        image_url
-    )
-
-
     try:
 
+
+        # создаём ID товара заранее
+        product_id = str(uuid.uuid4())[:8]
+
+
+        # временная кнопка
+        reply_markup = create_max_button(
+            product,
+            product_id
+        )
+
+
+
+        # ==========================
+        # ОТПРАВКА ФОТО
+        # ==========================
 
         if image_url:
 
@@ -120,6 +128,7 @@ def send_post(
             )
 
 
+
         else:
 
 
@@ -143,6 +152,12 @@ def send_post(
 
 
 
+
+
+        result = response.json()
+
+
+
         print(
             "========== POST TO CHANNEL =========="
         )
@@ -157,7 +172,50 @@ def send_post(
 
 
 
-        return response.json()
+
+
+        # ==========================
+        # СОХРАНЯЕМ MESSAGE ID
+        # ==========================
+
+        message_id = None
+
+
+
+        if result.get("ok"):
+
+            message_id = result["result"]["message_id"]
+
+
+
+
+
+        save_product(
+
+            product_id,
+
+            product,
+
+            image_url,
+
+            message_id
+
+        )
+
+
+
+        print(
+            "SAVED PRODUCT:",
+            product_id,
+            "MESSAGE:",
+            message_id
+        )
+
+
+
+        return result
+
+
 
 
 
