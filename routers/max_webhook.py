@@ -3,6 +3,7 @@ import json
 from fastapi import APIRouter, Request
 
 from config import *
+
 from states import (
     get_state,
     set_state,
@@ -51,7 +52,7 @@ async def max_webhook(request: Request):
 
 
     # ==========================
-    # ЗАПУСК БОТА ПО КНОПКЕ
+    # ЗАПУСК ПО КНОПКЕ
     # ==========================
 
     if update_type == "bot_started":
@@ -81,22 +82,32 @@ async def max_webhook(request: Request):
         )
 
 
+
         product_data = get_product(
             payload
         )
 
 
+
         if product_data:
+
 
             product = product_data["product"]
 
             image_url = product_data["image_url"]
 
+            channel_message_id = product_data["channel_message_id"]
+
+
         else:
+
 
             product = None
 
             image_url = None
+
+            channel_message_id = None
+
 
 
 
@@ -112,22 +123,41 @@ async def max_webhook(request: Request):
         )
 
 
+        print(
+            "CHANNEL MESSAGE ID:",
+            channel_message_id
+        )
+
+
+
 
         if product:
 
 
             set_state(
+
                 user_id,
+
                 "WAIT_NAME",
+
                 {
+
                     "product": product,
-                    "image_url": image_url
+
+                    "image_url": image_url,
+
+                    "channel_message_id": channel_message_id
+
                 }
+
             )
 
 
+
             send_message_max(
+
                 chat_id,
+
                 f"""
 🟢 Бронирование
 
@@ -135,6 +165,7 @@ async def max_webhook(request: Request):
 
 ✍️ Введите ваше имя
 """
+
             )
 
 
@@ -142,15 +173,22 @@ async def max_webhook(request: Request):
 
 
             set_state(
+
                 user_id,
+
                 "WAIT_PRODUCT",
+
                 {}
+
             )
 
 
             send_message_max(
+
                 chat_id,
+
                 "👋 Привет!\n\nЧто хотите забронировать?"
+
             )
 
 
@@ -162,15 +200,18 @@ async def max_webhook(request: Request):
 
 
 
+
     # ==========================
-    # ОБРАБОТКА СООБЩЕНИЙ
+    # СООБЩЕНИЯ
     # ==========================
 
     if update_type != "message_created":
 
+
         return {
             "ok": True
         }
+
 
 
 
@@ -215,6 +256,8 @@ async def max_webhook(request: Request):
 
 
 
+
+
     # ==========================
     # ИМЯ
     # ==========================
@@ -225,22 +268,33 @@ async def max_webhook(request: Request):
         state["data"]["name"] = text
 
 
+
         set_state(
+
             user_id,
+
             "WAIT_PHONE",
+
             state["data"]
+
         )
+
 
 
         send_message_max(
+
             chat_id,
+
             "📞 Введите ваш телефон"
+
         )
+
 
 
         return {
             "ok": True
         }
+
 
 
 
@@ -252,23 +306,36 @@ async def max_webhook(request: Request):
     if state and state["state"] == "WAIT_PHONE":
 
 
+
         state["data"]["phone"] = text
+
 
 
 
         booking_id = create_booking(
 
+
             product=state["data"]["product"],
+
 
             name=state["data"]["name"],
 
+
             phone=state["data"]["phone"],
+
 
             image_url=state["data"].get(
                 "image_url"
+            ),
+
+
+            channel_message_id=state["data"].get(
+                "channel_message_id"
             )
 
+
         )
+
 
 
 
@@ -279,19 +346,24 @@ async def max_webhook(request: Request):
 
 
         send_message_max(
+
             chat_id,
+
             f"""
 ✅ Заявка создана!
 
 Номер:
 #{booking_id}
 """
+
         )
+
 
 
         return {
             "ok": True
         }
+
 
 
 
