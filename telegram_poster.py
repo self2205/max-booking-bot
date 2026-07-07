@@ -43,18 +43,21 @@ def encode_payload(data: dict):
 
 def create_max_button(product, image_url=None):
 
-    payload = encode_payload(
-        {
-            "product": product,
-            "image_url": image_url
-        }
+
+    product_id = str(uuid.uuid4())[:8]
+
+
+    save_product(
+        product_id,
+        product,
+        image_url
     )
 
 
     max_url = (
         f"https://max.ru/"
         f"{MAX_BOT_USERNAME}"
-        f"?start={payload}"
+        f"?start={product_id}"
     )
 
 
