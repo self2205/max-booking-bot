@@ -8,55 +8,11 @@ from config import (
 
 from database import (
     change_status,
-    get_bookings,
-    get_product_by_name
+    get_bookings
 )
 
 
-
-API_URL = (
-    f"https://api.telegram.org/bot{TG_TOKEN}"
-)
-
-
-
-# ==================================
-# ПОЛУЧЕНИЕ ФОТО ИЗ КАНАЛА
-# ==================================
-
-def get_channel_photo(message_id):
-
-    try:
-
-        response = requests.get(
-
-            f"{API_URL}/getChat",
-
-            params={
-                "chat_id": TG_CHANNEL_CHAT_ID
-            },
-
-            timeout=10
-
-        )
-
-
-        # фото достаем через forwardMessage
-        # поэтому возвращаем message_id
-
-        return message_id
-
-
-    except Exception as e:
-
-        print(
-            "GET CHANNEL PHOTO ERROR:",
-            e,
-            flush=True
-        )
-
-        return None
-
+API_URL = f"https://api.telegram.org/bot{TG_TOKEN}"
 
 
 
@@ -69,7 +25,8 @@ def send_to_telegram(
         name,
         phone,
         image_url=None,
-        channel_message_id=None
+        channel_message_id=None,
+        photo=None
 ):
 
 
@@ -90,9 +47,6 @@ def send_to_telegram(
 """
 
 
-    # ищем сообщение товара
-
-
     for admin_id in ADMIN_IDS:
 
 
@@ -100,7 +54,7 @@ def send_to_telegram(
 
 
             # =========================
-            # ЕСЛИ ЕСТЬ ФОТО В КАНАЛЕ
+            # 1. ЕСЛИ ЕСТЬ ID СООБЩЕНИЯ
             # =========================
 
             if channel_message_id:
@@ -126,14 +80,11 @@ def send_to_telegram(
 
 
                 print(
-                    "FORWARD PHOTO:",
+                    "FORWARD RESULT:",
                     response.text,
                     flush=True
                 )
 
-
-
-                # после фото отправляем описание
 
                 requests.post(
 
@@ -151,6 +102,44 @@ def send_to_telegram(
 
                 )
 
+
+            # =========================
+            # 2. ЕСЛИ ЕСТЬ PHOTO FILE_ID
+            # =========================
+
+            elif photo:
+
+
+                response = requests.post(
+
+                    f"{API_URL}/sendPhoto",
+
+                    data={
+
+                        "chat_id": admin_id,
+
+                        "photo": photo,
+
+                        "caption": text
+
+                    },
+
+                    timeout=20
+
+                )
+
+
+                print(
+                    "SEND PHOTO RESULT:",
+                    response.text,
+                    flush=True
+                )
+
+
+
+            # =========================
+            # 3. ПРОСТО ТЕКСТ
+            # =========================
 
             else:
 
@@ -173,11 +162,10 @@ def send_to_telegram(
 
 
                 print(
-                    "SEND TEXT:",
+                    "SEND TEXT RESULT:",
                     response.text,
                     flush=True
                 )
-
 
 
 
@@ -185,7 +173,7 @@ def send_to_telegram(
 
 
             print(
-                "TELEGRAM SEND ERROR:",
+                "TELEGRAM ERROR:",
                 e,
                 flush=True
             )
@@ -198,26 +186,84 @@ def send_to_telegram(
 # ПОСТ В КАНАЛ
 # ==================================
 
-def send_to_channel(product):
+def send_to_channel(
+        text,
+        photo=None,
+        button=None
+):
 
 
     try:
 
-        response = requests.post(
 
-            f"{API_URL}/sendMessage",
+        if photo:
 
-            json={
+
+            payload = {
 
                 "chat_id": TG_CHANNEL_CHAT_ID,
 
-                "text": product
+                "photo": photo,
 
-            },
+                "caption": text
 
-            timeout=15
+            }
 
-        )
+
+            if button:
+
+                payload["reply_markup"] = {
+
+                    "inline_keyboard":[
+
+                        [
+
+                            {
+
+                                "text": "🟢 Забронировать",
+
+                                "url": button
+
+                            }
+
+                        ]
+
+                    ]
+
+                }
+
+
+            response = requests.post(
+
+                f"{API_URL}/sendPhoto",
+
+                json=payload,
+
+                timeout=20
+
+            )
+
+
+
+        else:
+
+
+            response = requests.post(
+
+                f"{API_URL}/sendMessage",
+
+                json={
+
+                    "chat_id": TG_CHANNEL_CHAT_ID,
+
+                    "text": text
+
+                },
+
+                timeout=15
+
+            )
+
 
 
         print(
@@ -239,6 +285,7 @@ def send_to_channel(product):
             e,
             flush=True
         )
+
 
 
 
@@ -279,7 +326,9 @@ def handle_admin_commands(message, send_func):
                 text.split()[1]
             )
 
+
         except:
+
 
             send_func(
                 "❌ Используй: /status 12"
@@ -295,8 +344,9 @@ def handle_admin_commands(message, send_func):
 
 
         send_func(
-            f"✅ Статус заявки #{booking_id} обновлён"
+            f"✅ Статус заявки #{booking_id} изменён"
         )
+
 
 
 
@@ -306,17 +356,18 @@ def handle_admin_commands(message, send_func):
         rows = get_bookings()
 
 
-        msg = (
-            "📋 Последние заявки\n\n"
-        )
+        msg = "📋 Последние заявки\n\n"
 
 
         for r in rows[:10]:
 
+
             msg += (
+
                 f"#{r['id']} | "
                 f"{r['product']} | "
                 f"{r['status']}\n"
+
             )
 
 
@@ -327,7 +378,7 @@ def handle_admin_commands(message, send_func):
 
 
 # ==================================
-# ГЕНЕРАТОР ПОСТОВ
+# ПОСТИНГ ИЗ ТГ
 # ==================================
 
 def handle_post_generator(message, send_func):
