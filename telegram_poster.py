@@ -20,13 +20,22 @@ API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
 
 def create_max_button(
         product,
-        image_url=None
+        image_url=None,
+        preview_image=None
 ):
 
     product_id = str(uuid.uuid4())[:8]
 
 
-    if isinstance(image_url, list):
+    # ==========================
+    # ФОТО ДЛЯ БАЗЫ
+    # ==========================
+
+    if preview_image:
+
+        db_image = preview_image
+
+    elif isinstance(image_url, list):
 
         db_image = image_url[0]
 
@@ -43,6 +52,12 @@ def create_max_button(
     )
 
 
+    max_url = (
+        f"https://max.ru/"
+        f"{MAX_BOT_USERNAME}"
+        f"?start={product_id}"
+    )
+
 
     return {
 
@@ -52,8 +67,7 @@ def create_max_button(
 
                 {
                     "text": "🟢 Забронировать",
-                    "url":
-                    f"https://max.ru/{MAX_BOT_USERNAME}?start={product_id}"
+                    "url": max_url
                 }
 
             ]
@@ -65,22 +79,22 @@ def create_max_button(
 
 
 
-
 # ==================================
-# ПОСТ В КАНАЛ
+# ОТПРАВКА ПОСТА
 # ==================================
 
 def send_post(
         product,
-        image_url=None
+        image_url=None,
+        preview_image=None
 ):
 
 
     reply_markup = create_max_button(
         product,
-        image_url
+        image_url,
+        preview_image
     )
-
 
 
     try:
@@ -96,7 +110,7 @@ def send_post(
             media = []
 
 
-            for i, photo in enumerate(image_url):
+            for index, photo in enumerate(image_url):
 
 
                 item = {
@@ -108,7 +122,9 @@ def send_post(
                 }
 
 
-                if i == 0:
+                # подпись только первому фото
+
+                if index == 0:
 
                     item["caption"] = product
 
@@ -134,31 +150,34 @@ def send_post(
             )
 
 
-
             result = response.json()
 
 
 
             print(
-                "ALBUM RESULT:",
+                "========== ALBUM RESULT ==========",
+                flush=True
+            )
+
+
+            print(
                 result,
                 flush=True
             )
 
 
 
-            # ==================================
-            # ДОБАВЛЯЕМ КНОПКУ К ПЕРВОМУ ФОТО
-            # ==================================
+            # если альбом отправлен успешно
 
             if result.get("ok"):
 
 
-                first_message_id = result["result"][0]["message_id"]
+                first_message_id = (
+                    result["result"][0]["message_id"]
+                )
 
 
-
-                edit = requests.post(
+                button_response = requests.post(
 
                     f"{API_URL}/editMessageReplyMarkup",
 
@@ -177,17 +196,19 @@ def send_post(
                 )
 
 
-
                 print(
-                    "BUTTON EDIT:",
-                    edit.text,
+
+                    "BUTTON RESULT:",
+
+                    button_response.text,
+
                     flush=True
+
                 )
 
 
 
             return result
-
 
 
 
@@ -225,6 +246,7 @@ def send_post(
 
 
 
+
         # ==================================
         # ТЕКСТ
         # ==================================
@@ -255,7 +277,12 @@ def send_post(
 
 
         print(
-            "POST RESULT:",
+            "========== POST RESULT ==========",
+            flush=True
+        )
+
+
+        print(
             response.text,
             flush=True
         )
@@ -266,14 +293,17 @@ def send_post(
 
 
 
-
     except Exception as e:
 
 
         print(
+
             "TELEGRAM POST ERROR:",
+
             e,
+
             flush=True
+
         )
 
 
