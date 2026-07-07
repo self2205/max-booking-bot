@@ -3,12 +3,12 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from routers.max_webhook import router as max_router
+from routers.telegram_webhook import router as telegram_router
 
 import secrets
 import base64
 import json
 import requests
-
 
 
 from config import *
@@ -32,6 +32,7 @@ from states import (
 
 app = FastAPI()
 app.include_router(max_router)
+app.include_router(telegram_router)
 
 
 # ==========================
