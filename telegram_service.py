@@ -68,7 +68,8 @@ def send_to_telegram(
         product,
         name,
         phone,
-        image_url=None
+        image_url=None,
+        channel_message_id=None
 ):
 
 
@@ -89,36 +90,7 @@ def send_to_telegram(
 """
 
 
-
-    channel_message_id = None
-
-
-
     # ищем сообщение товара
-
-    try:
-
-        product_data = get_product_by_name(
-            product
-        )
-
-
-        if product_data:
-
-            channel_message_id = (
-                product_data["channel_message_id"]
-            )
-
-
-    except Exception as e:
-
-        print(
-            "PRODUCT SEARCH ERROR:",
-            e,
-            flush=True
-        )
-
-
 
 
     for admin_id in ADMIN_IDS:
