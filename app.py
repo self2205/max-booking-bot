@@ -202,9 +202,11 @@ async def webhook(request: Request):
         )
 
 
-        payload = data.get(
-            "payload",
-            ""
+        payload = (
+        data.get("payload")
+        or data.get("start")
+        or data.get("parameter")
+        or ""
         )
 
 
