@@ -1,8 +1,12 @@
 import time
+import uuid
 import requests
 
 from config import TG_POST_TOKEN
+
 from telegram_poster import send_post
+
+from database import save_product
 
 
 API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
@@ -44,7 +48,9 @@ def get_updates():
         return response.json()
 
 
+
     except Exception as e:
+
 
         print(
             "GET UPDATES ERROR:",
@@ -52,7 +58,9 @@ def get_updates():
             flush=True
         )
 
+
         return {}
+
 
 
 
@@ -93,6 +101,7 @@ def process_updates():
 
 
 
+
         photo = message.get(
             "photo"
         )
@@ -101,12 +110,16 @@ def process_updates():
 
         if not photo:
 
+
             print(
                 "MESSAGE WITHOUT PHOTO SKIPPED",
                 flush=True
             )
 
+
             continue
+
+
 
 
 
@@ -125,16 +138,22 @@ def process_updates():
 
 
 
+
         print(
-            "NEW POST:",
+            "========== NEW TELEGRAM POST ==========",
+            flush=True
+        )
+
+
+        print(
+            "PRODUCT:",
             product,
             flush=True
         )
 
 
-
         print(
-            "PHOTO FILE ID:",
+            "PHOTO:",
             file_id,
             flush=True
         )
@@ -144,13 +163,26 @@ def process_updates():
         try:
 
 
+
+            # создаем ID товара
+
+            product_id = str(
+                uuid.uuid4()
+            )[:8]
+
+
+
+
             result = send_post(
 
                 product=product,
 
-                image_url=file_id
+                image_url=file_id,
+
+                product_id=product_id
 
             )
+
 
 
             print(
@@ -161,7 +193,65 @@ def process_updates():
 
 
 
+            # получаем ID сообщения Telegram
+
+            message_id = None
+
+
+
+            if result:
+
+                message_id = (
+                    result
+                    .get("result", {})
+                    .get("message_id")
+                )
+
+
+
+            print(
+                "TELEGRAM MESSAGE ID:",
+                message_id,
+                flush=True
+            )
+
+
+
+
+
+            save_product(
+
+                product_id=product_id,
+
+                product=product,
+
+                image_url=file_id,
+
+                telegram_message_id=message_id
+
+            )
+
+
+
+            print(
+                "PRODUCT SAVED:",
+                product_id,
+                flush=True
+            )
+
+
+
+            print(
+                "========================================",
+                flush=True
+            )
+
+
+
+
+
         except Exception as e:
+
 
 
             print(
@@ -169,6 +259,9 @@ def process_updates():
                 e,
                 flush=True
             )
+
+
+
 
 
 
@@ -183,15 +276,20 @@ def start_listener():
     )
 
 
+
     while True:
+
 
 
         try:
 
+
             process_updates()
 
 
+
         except Exception as e:
+
 
 
             print(
