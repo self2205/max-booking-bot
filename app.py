@@ -217,7 +217,7 @@ async def webhook(request: Request):
         )
 
 
-                product_data = get_product(
+        product_data = get_product(
             payload
         )
 
@@ -233,8 +233,6 @@ async def webhook(request: Request):
             product = None
 
             image_url = None
-
-
 
         print(
             "PRODUCT:",
