@@ -7,7 +7,10 @@ from config import (
     MAX_BOT_USERNAME
 )
 
-from database import change_status, get_bookings
+from database import (
+    change_status,
+    get_bookings
+)
 
 
 
@@ -28,7 +31,14 @@ def clean_product(text: str):
 # ОТПРАВКА ЗАЯВКИ АДМИНАМ
 # ==========================
 
-def send_to_telegram(product, name, phone, image_url=None):
+def send_to_telegram(
+        product,
+        name,
+        phone,
+        image_url=None,
+        channel_message_id=None
+):
+
 
     text = f"""📦 НОВАЯ ЗАЯВКА НА БРОНИРОВАНИЕ
 
@@ -43,39 +53,81 @@ def send_to_telegram(product, name, phone, image_url=None):
 """
 
 
+
     for admin_id in ADMIN_IDS:
+
 
         try:
 
-            if image_url:
+
+            # ==========================
+            # ЕСЛИ ЕСТЬ ПОСТ В КАНАЛЕ
+            # КОПИРУЕМ ЕГО С ФОТО
+            # ==========================
+
+            if channel_message_id:
+
 
                 response = requests.post(
 
-                    f"https://api.telegram.org/bot{TG_TOKEN}/sendPhoto",
+                    f"https://api.telegram.org/bot{TG_TOKEN}/copyMessage",
 
-                    data={
+                    json={
+
                         "chat_id": admin_id,
-                        "photo": image_url,
-                        "caption": text
+
+                        "from_chat_id": TG_CHANNEL_CHAT_ID,
+
+                        "message_id": channel_message_id
+
                     },
 
                     timeout=15
+
                 )
 
 
+                # после фото отправляем данные заявки
+
+                requests.post(
+
+                    f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+
+                    json={
+
+                        "chat_id": admin_id,
+
+                        "text": text
+
+                    },
+
+                    timeout=15
+
+                )
+
+
+
             else:
+
 
                 response = requests.post(
 
                     f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
 
-                    data={
+                    json={
+
                         "chat_id": admin_id,
+
                         "text": text
+
                     },
 
                     timeout=15
+
                 )
+
+
+
 
 
             print(
@@ -91,13 +143,19 @@ def send_to_telegram(product, name, phone, image_url=None):
             )
 
 
+
+
         except Exception as e:
+
 
             print(
                 "TELEGRAM SEND ERROR:",
                 e,
                 flush=True
             )
+
+
+
 
 
 
@@ -110,27 +168,39 @@ def send_to_channel(product: str):
     product = clean_product(product)
 
 
+
     product_url = (
+
         f"https://max.ru/{MAX_BOT_USERNAME}?start=product_"
+
         + requests.utils.quote(product)
+
     )
+
 
 
     payload = {
 
+
         "chat_id": TG_CHANNEL_CHAT_ID,
+
 
         "text": f"📦 {product}",
 
+
         "reply_markup": {
+
 
             "inline_keyboard": [
 
                 [
 
                     {
+
                         "text": "🟢 Забронировать",
+
                         "url": product_url
+
                     }
 
                 ]
@@ -142,7 +212,9 @@ def send_to_channel(product: str):
     }
 
 
+
     try:
+
 
         response = requests.post(
 
@@ -162,7 +234,9 @@ def send_to_channel(product: str):
         )
 
 
+
     except Exception as e:
+
 
         print(
             "CHANNEL ERROR:",
@@ -172,11 +246,15 @@ def send_to_channel(product: str):
 
 
 
+
+
+
 # ==========================
 # ADMIN COMMANDS
 # ==========================
 
 def handle_admin_commands(message, send_func):
+
 
     text = message.get(
         "text",
@@ -198,6 +276,7 @@ def handle_admin_commands(message, send_func):
 
 
 
+
     if text.startswith("/status"):
 
 
@@ -207,7 +286,9 @@ def handle_admin_commands(message, send_func):
                 text.split()[1]
             )
 
+
         except:
+
 
             send_func(
                 "❌ Используй: /status 12"
@@ -231,6 +312,8 @@ def handle_admin_commands(message, send_func):
 
 
 
+
+
     if text == "/list":
 
 
@@ -242,10 +325,15 @@ def handle_admin_commands(message, send_func):
 
         for r in rows[:10]:
 
+
             msg += (
+
                 f"#{r['id']} | "
+
                 f"{r['product']} | "
+
                 f"{r['status']}\n"
+
             )
 
 
@@ -256,11 +344,14 @@ def handle_admin_commands(message, send_func):
 
 
 
+
+
 # ==========================
 # ГЕНЕРАТОР ПОСТОВ
 # ==========================
 
 def handle_post_generator(message, send_func):
+
 
     user_id = message.get(
         "from",
@@ -309,16 +400,21 @@ def handle_post_generator(message, send_func):
 
 
 
+
+
+
 # ==========================
 # MAIN DISPATCHER
 # ==========================
 
 def handle_message(message, send_func):
 
+
     handle_admin_commands(
         message,
         send_func
     )
+
 
 
     if handle_post_generator(
