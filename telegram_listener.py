@@ -238,33 +238,31 @@ def send_albums():
 
 
 
+def start_listener():
+
+    while True:
+
+        try:
+
+            process_updates()
+
+
+        except Exception as e:
+
+            print(
+                "ERROR:",
+                e,
+                flush=True
+            )
+
+
+        time.sleep(1)
 
 
 
+if __name__ == "__main__":
 
-while True:
-
-
-    try:
-
-
-        process_updates()
-
-
-
-    except Exception as e:
-
-
-        print(
-
-            "ERROR:",
-
-            e,
-
-            flush=True
-
-        )
-
+    start_listener()
 
 
     time.sleep(1)
