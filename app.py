@@ -205,30 +205,21 @@ async def webhook(request: Request):
     # ==========================
     # ЧЕЛОВЕК ОТКРЫЛ БОТА ПО КНОПКЕ
     # ==========================
-    if update_type == "bot_started":
+if update_type == "bot_started":
 
-        user_id = data.get("user_id")
-        chat_id = data.get("chat_id")
-        payload = data.get("payload", "")
+    user_id = data.get("user_id")
+    chat_id = data.get("chat_id")
+    payload = data.get("payload", "")
 
-        print("RAW PAYLOAD:", payload)
-
-
-    # ==========================
-    # РАСПАКОВКА ДАННЫХ ИЗ КНОПКИ
-    # ==========================
+    print("RAW PAYLOAD:", payload)
 
     decoded = decode_payload(payload)
-
 
     product = decoded.get("product")
     image_url = decoded.get("image_url")
 
-
     print("PRODUCT:", product)
     print("IMAGE:", image_url)
-
-
 
     if product:
 
@@ -237,23 +228,19 @@ async def webhook(request: Request):
             "image_url": image_url
         })
 
-
         send_message_max(
             chat_id,
             f"🟢 Бронирование\n\n📦 {product}\n\n✍️ Введите ваше имя"
         )
 
-
     else:
 
         set_state(user_id, "WAIT_PRODUCT", {})
-
 
         send_message_max(
             chat_id,
             "👋 Привет!\n\nЧто хотите забронировать?"
         )
-
 
     return {"ok": True}
     # ==========================
