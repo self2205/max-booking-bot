@@ -13,7 +13,8 @@ from config import *
 
 from database import (
     init_db,
-    get_bookings
+    get_bookings,
+    get_product
 )
 
 from booking_service import create_booking
