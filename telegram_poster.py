@@ -1,5 +1,6 @@
 import requests
 import uuid
+import json
 
 from database import save_product
 
@@ -58,6 +59,7 @@ def create_max_button(product, image_url=None):
 
 
 
+
 # ==================================
 # ПОСТ В TELEGRAM КАНАЛ
 # ==================================
@@ -68,18 +70,19 @@ def send_post(
 ):
 
 
-    reply_markup = create_max_button(
-        product,
-        image_url
-    )
-
-
     try:
 
 
-        # ==========================
+        reply_markup = create_max_button(
+            product,
+            image_url[0] if isinstance(image_url, list) else image_url
+        )
+
+
+
+        # ==================================
         # АЛЬБОМ
-        # ==========================
+        # ==================================
 
         if isinstance(image_url, list):
 
@@ -99,11 +102,14 @@ def send_post(
                 }
 
 
-                # подпись только у первого фото
+                # текст только на первом фото
 
                 if index == 0:
 
                     item["caption"] = product
+
+                    item["reply_markup"] = reply_markup
+
 
 
                 media.append(item)
@@ -112,9 +118,7 @@ def send_post(
 
             response = requests.post(
 
-
                 f"{API_URL}/sendMediaGroup",
-
 
                 json={
 
@@ -124,64 +128,35 @@ def send_post(
 
                 },
 
-
                 timeout=30
 
             )
 
 
 
-            # кнопка отдельным сообщением
-            requests.post(
 
-                f"{API_URL}/sendMessage",
-
-                json={
-
-                    "chat_id": TG_CHANNEL_CHAT_ID,
-
-                    "text": "🟢 Забронировать",
-
-                    "reply_markup": reply_markup
-
-                },
-
-                timeout=20
-
-            )
-
-
-
-        # ==========================
+        # ==================================
         # ОДНО ФОТО
-        # ==========================
+        # ==================================
 
         elif image_url:
 
 
             response = requests.post(
 
-
                 f"{API_URL}/sendPhoto",
-
 
                 json={
 
-
                     "chat_id": TG_CHANNEL_CHAT_ID,
-
 
                     "photo": image_url,
 
-
                     "caption": product,
-
 
                     "reply_markup": reply_markup
 
-
                 },
-
 
                 timeout=20
 
@@ -189,37 +164,32 @@ def send_post(
 
 
 
-        # ==========================
+
+        # ==================================
         # ТЕКСТ
-        # ==========================
+        # ==================================
 
         else:
 
 
             response = requests.post(
 
-
                 f"{API_URL}/sendMessage",
-
 
                 json={
 
-
                     "chat_id": TG_CHANNEL_CHAT_ID,
-
 
                     "text": product,
 
-
                     "reply_markup": reply_markup
 
-
                 },
-
 
                 timeout=20
 
             )
+
 
 
 
@@ -237,6 +207,7 @@ def send_post(
         print(
             "======================================"
         )
+
 
 
         return response.json()
