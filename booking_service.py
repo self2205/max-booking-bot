@@ -2,7 +2,6 @@ from database import save_booking
 from telegram_service import send_to_telegram
 
 
-
 def create_booking(
         product,
         name,
@@ -11,19 +10,19 @@ def create_booking(
         channel_message_id=None
 ):
 
+    """
+    Создает заявку:
+    - сохраняет в PostgreSQL
+    - отправляет админам в Telegram
+    """
+
 
     booking_id = save_booking(
-
         product=product,
-
         name=name,
-
         phone=phone,
-
         image_url=image_url
-
     )
-
 
 
     send_to_telegram(
@@ -42,9 +41,7 @@ def create_booking(
 
 
 
-    print(
-        "\n========== НОВАЯ ЗАЯВКА =========="
-    )
+    print("\n========== НОВАЯ ЗАЯВКА ==========")
 
     print(
         f"ID: {booking_id}"
