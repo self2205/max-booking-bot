@@ -1,15 +1,16 @@
-from fastapi import FastAPI, Request, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
+
 from routers.max_webhook import router as max_router
 from routers.telegram_webhook import router as telegram_router
+
 from telegram_listener import start_listener
 
 import secrets
 import base64
 import json
-import requests
 import threading
 
 
@@ -34,8 +35,15 @@ from states import (
 
 app = FastAPI()
 
+
+# ==========================
+# START TELEGRAM LISTENER
+# ==========================
+
 @app.on_event("startup")
 def startup_event():
+
+    print("STARTING TELEGRAM LISTENER")
 
     thread = threading.Thread(
         target=start_listener,
@@ -44,7 +52,13 @@ def startup_event():
 
     thread.start()
 
+
+# ==========================
+# ROUTERS
+# ==========================
+
 app.include_router(max_router)
+
 app.include_router(telegram_router)
 
 
