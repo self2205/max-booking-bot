@@ -25,6 +25,7 @@ def init_db():
     # ======================
     # BOOKINGS
     # ======================
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS bookings (
 
@@ -55,6 +56,7 @@ def init_db():
     # ======================
     # PRODUCTS FOR MAX
     # ======================
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS products (
 
@@ -64,9 +66,17 @@ def init_db():
 
             image_url TEXT,
 
+            channel_message_id INTEGER,
+
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
         );
+    """)
+
+
+    cur.execute("""
+        ALTER TABLE products
+        ADD COLUMN IF NOT EXISTS channel_message_id INTEGER;
     """)
 
 
@@ -81,6 +91,7 @@ def init_db():
 # ==========================
 # SAVE BOOKING
 # ==========================
+
 def save_booking(
         product,
         name,
@@ -135,6 +146,7 @@ def save_booking(
 # ==========================
 # GET BOOKINGS
 # ==========================
+
 def get_bookings():
 
     conn = get_connection()
@@ -172,6 +184,7 @@ def get_bookings():
 # ==========================
 # CHANGE STATUS
 # ==========================
+
 def change_status(booking_id):
 
     conn = get_connection()
@@ -247,10 +260,12 @@ def change_status(booking_id):
 # ==========================
 # SAVE PRODUCT
 # ==========================
+
 def save_product(
         product_id,
         product,
-        image_url=None
+        image_url=None,
+        channel_message_id=None
 ):
 
     conn = get_connection()
@@ -262,10 +277,11 @@ def save_product(
         (
             id,
             product,
-            image_url
+            image_url,
+            channel_message_id
         )
 
-        VALUES (%s, %s, %s)
+        VALUES (%s, %s, %s, %s)
 
         ON CONFLICT (id)
 
@@ -273,13 +289,16 @@ def save_product(
 
             product = EXCLUDED.product,
 
-            image_url = EXCLUDED.image_url
+            image_url = EXCLUDED.image_url,
+
+            channel_message_id = EXCLUDED.channel_message_id
 
     """,
     (
         product_id,
         product,
-        image_url
+        image_url,
+        channel_message_id
     ))
 
 
@@ -293,6 +312,7 @@ def save_product(
 # ==========================
 # GET PRODUCT
 # ==========================
+
 def get_product(product_id):
 
     conn = get_connection()
@@ -303,7 +323,8 @@ def get_product(product_id):
         SELECT
             id,
             product,
-            image_url
+            image_url,
+            channel_message_id
 
         FROM products
 
