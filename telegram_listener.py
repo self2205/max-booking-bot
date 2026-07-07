@@ -96,13 +96,9 @@ def process_updates():
 
 
         caption = message.get(
-            "caption"
+            "caption",
+            "Товар"
         )
-
-
-        if not caption:
-
-            caption = "Товар"
 
 
 
@@ -119,20 +115,14 @@ def process_updates():
         if media_group_id:
 
 
+
             if media_group_id not in albums:
 
 
                 albums[media_group_id] = {
 
 
-                    # все фото для канала
-
                     "photos": [],
-
-
-                    # первое фото для базы
-
-                    "preview": file_id,
 
 
                     "caption": caption,
@@ -144,7 +134,6 @@ def process_updates():
 
 
 
-            # добавляем фото в альбом
 
             if file_id not in albums[media_group_id]["photos"]:
 
@@ -172,7 +161,6 @@ def process_updates():
                 flush=True
 
             )
-
 
 
             continue
@@ -234,13 +222,11 @@ def send_albums():
 
 
 
-        # ждём пока Telegram пришлёт все фото
+        # ждём пока Telegram пришлет все фото
 
         if now - album["time"] < 5:
 
-
             continue
-
 
 
 
@@ -261,13 +247,12 @@ def send_albums():
 
 
 
+
         send_post(
 
             product=album["caption"],
 
-            image_url=album["photos"],
-
-            preview_image=album["preview"]
+            image_url=album["photos"]
 
         )
 
@@ -281,11 +266,18 @@ def send_albums():
 
 
 
+
 # ==================================
 # START LISTENER
 # ==================================
 
 def start_listener():
+
+
+    print(
+        "TELEGRAM LISTENER STARTED",
+        flush=True
+    )
 
 
     while True:
