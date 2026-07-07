@@ -1,27 +1,51 @@
+import time
 import requests
 
 from config import TG_POST_TOKEN
 from telegram_poster import send_post
 
 
-API_URL = (
-    f"https://api.telegram.org/bot{TG_POST_TOKEN}"
-)
+API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
 
+
+offset = None
 
 
 def get_updates():
 
-    response = requests.get(
+    global offset
+
+
+    params = {
+        "timeout": 30
+    }
+
+
+    if offset:
+
+        params["offset"] = offset
+
+
+
+    r = requests.get(
+
         f"{API_URL}/getUpdates",
-        timeout=30
+
+        params=params,
+
+        timeout=35
+
     )
 
-    return response.json()
+
+    return r.json()
 
 
 
 def process_updates():
+
+    global offset
+
 
     data = get_updates()
 
@@ -29,14 +53,30 @@ def process_updates():
     for update in data.get("result", []):
 
 
-        message = update.get("message")
+        offset = update["update_id"] + 1
+
+
+
+        message = update.get(
+            "message"
+        )
 
 
         if not message:
             continue
 
 
-        photo = message.get("photo")
+
+        photo = message.get(
+            "photo"
+        )
+
+
+        if not photo:
+
+            continue
+
+
 
         caption = message.get(
             "caption",
@@ -44,19 +84,18 @@ def process_updates():
         )
 
 
-        if not photo:
-            continue
+        product = caption or "Товар"
+
 
 
         file_id = photo[-1]["file_id"]
 
 
-        product = caption
 
-
-        if not product:
-
-            product = "Товар"
+        print(
+            "NEW POST:",
+            product
+        )
 
 
 
@@ -70,6 +109,20 @@ def process_updates():
 
 
 
-if __name__ == "__main__":
+while True:
 
-    process_updates()
+
+    try:
+
+        process_updates()
+
+
+    except Exception as e:
+
+        print(
+            "ERROR:",
+            e
+        )
+
+
+    time.sleep(2)
