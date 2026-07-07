@@ -15,7 +15,10 @@ def get_updates():
         timeout=30
     )
 
-    print(r.json())
+    data = r.json()
+
+    print(data)
+
 
 
 if __name__ == "__main__":
