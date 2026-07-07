@@ -12,7 +12,11 @@ from config import (
 )
 
 
-API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
+
+API_URL = (
+    f"https://api.telegram.org/bot{TG_POST_TOKEN}"
+)
+
 
 
 
@@ -27,9 +31,13 @@ def encode_payload(data: dict):
         ensure_ascii=False
     )
 
+
     return base64.urlsafe_b64encode(
         raw.encode("utf-8")
     ).decode("utf-8")
+
+
+
 
 
 
@@ -38,20 +46,8 @@ def encode_payload(data: dict):
 # ==================================
 
 def create_max_button(
-        product,
-        image_url=None
+        product_id
 ):
-
-    product_id = str(uuid.uuid4())[:8]
-
-
-    # пока сохраняем без message_id
-    save_product(
-        product_id,
-        product,
-        image_url,
-        None
-    )
 
 
     max_url = (
@@ -61,8 +57,7 @@ def create_max_button(
     )
 
 
-    return product_id, {
-
+    return {
 
         "inline_keyboard": [
 
@@ -82,6 +77,9 @@ def create_max_button(
 
 
 
+
+
+
 # ==================================
 # ОТПРАВКА ПОСТА В КАНАЛ
 # ==================================
@@ -92,15 +90,17 @@ def send_post(
 ):
 
 
-    product_id, reply_markup = create_max_button(
-        product,
-        image_url
-    )
+    product_id = str(uuid.uuid4())[:8]
 
 
 
     try:
 
+
+
+        # ==========================
+        # ЕСЛИ ЕСТЬ ФОТО
+        # ==========================
 
         if image_url:
 
@@ -115,15 +115,14 @@ def send_post(
 
                     "photo": image_url,
 
-                    "caption": product,
-
-                    "reply_markup": reply_markup
+                    "caption": product
 
                 },
 
                 timeout=20
 
             )
+
 
 
         else:
@@ -137,9 +136,7 @@ def send_post(
 
                     "chat_id": TG_CHANNEL_CHAT_ID,
 
-                    "text": product,
-
-                    "reply_markup": reply_markup
+                    "text": product
 
                 },
 
@@ -150,55 +147,104 @@ def send_post(
 
 
 
-        data = response.json()
+
+        result = response.json()
 
 
 
         print(
-            "========== POST TO CHANNEL =========="
+            "========== CHANNEL POST =========="
         )
 
         print(
-            data
+            result
         )
 
         print(
-            "======================================"
+            "=================================="
         )
+
+
+
+
+        if not result.get("ok"):
+
+
+            return result
+
+
 
 
 
         # ==========================
-        # СОХРАНЯЕМ MESSAGE ID
+        # ID СООБЩЕНИЯ В КАНАЛЕ
         # ==========================
 
-        if data.get("ok"):
-
-
-            message_id = data["result"]["message_id"]
-
-
-            save_product(
-
-                product_id,
-
-                product,
-
-                image_url,
-
-                message_id
-
-            )
-
-
-            print(
-                "CHANNEL MESSAGE ID:",
-                message_id
-            )
+        message_id = (
+            result["result"]["message_id"]
+        )
 
 
 
-        return data
+        print(
+            "CHANNEL MESSAGE ID:",
+            message_id
+        )
+
+
+
+
+
+        # ==========================
+        # СОХРАНЯЕМ ТОВАР
+        # ==========================
+
+        save_product(
+
+            product_id,
+
+            product,
+
+            image_url,
+
+            message_id
+
+        )
+
+
+
+
+
+        # ==========================
+        # ДОБАВЛЯЕМ КНОПКУ
+        # ==========================
+
+        requests.post(
+
+            f"{API_URL}/editMessageReplyMarkup",
+
+            json={
+
+                "chat_id": TG_CHANNEL_CHAT_ID,
+
+                "message_id": message_id,
+
+                "reply_markup":
+                    create_max_button(
+                        product_id
+                    )
+
+            },
+
+            timeout=20
+
+        )
+
+
+
+
+        return result
+
 
 
 
@@ -207,7 +253,8 @@ def send_post(
 
         print(
             "TELEGRAM POST ERROR:",
-            e
+            e,
+            flush=True
         )
 
 
