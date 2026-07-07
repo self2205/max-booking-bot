@@ -19,77 +19,6 @@ API_URL = (
 
 
 # ==================================
-# ПОЛУЧЕНИЕ URL ФОТО
-# ==================================
-
-def get_file_url(file_id):
-
-    try:
-
-        response = requests.get(
-
-            f"{API_URL}/getFile",
-
-            params={
-                "file_id": file_id
-            },
-
-            timeout=15
-
-        )
-
-
-        data = response.json()
-
-
-        if not data.get("ok"):
-
-            print(
-                "GET FILE ERROR:",
-                data,
-                flush=True
-            )
-
-            return None
-
-
-
-        file_path = data["result"]["file_path"]
-
-
-        url = (
-            f"https://api.telegram.org/file/bot"
-            f"{TG_POST_TOKEN}/"
-            f"{file_path}"
-        )
-
-
-        print(
-            "PHOTO URL:",
-            url,
-            flush=True
-        )
-
-
-        return url
-
-
-
-    except Exception as e:
-
-        print(
-            "GET FILE EXCEPTION:",
-            e,
-            flush=True
-        )
-
-        return None
-
-
-
-
-
-# ==================================
 # ENCODE PAYLOAD
 # ==================================
 
@@ -100,14 +29,9 @@ def encode_payload(data: dict):
         ensure_ascii=False
     )
 
-
-    encoded = base64.urlsafe_b64encode(
+    return base64.urlsafe_b64encode(
         raw.encode("utf-8")
     ).decode("utf-8")
-
-
-    return encoded
-
 
 
 
@@ -118,47 +42,32 @@ def encode_payload(data: dict):
 
 def create_max_button(product, image_url=None):
 
-
     product_id = str(uuid.uuid4())[:8]
 
 
     save_product(
-
         product_id,
-
         product,
-
         image_url
-
     )
-
 
 
     max_url = (
-
         f"https://max.ru/"
-
         f"{MAX_BOT_USERNAME}"
-
         f"?start={product_id}"
-
     )
 
 
-
     return {
-
 
         "inline_keyboard": [
 
             [
 
                 {
-
                     "text": "🟢 Забронировать",
-
                     "url": max_url
-
                 }
 
             ]
@@ -170,46 +79,30 @@ def create_max_button(product, image_url=None):
 
 
 
-
 # ==================================
 # ОТПРАВКА ПОСТА В КАНАЛ
 # ==================================
 
 def send_post(
-
         product,
-
         image_url=None
-
 ):
 
 
-    # если пришёл telegram file_id
-    # превращаем его в настоящий URL
-
-    if image_url:
-
-        image_url = get_file_url(
-            image_url
-        )
-
-
-
     reply_markup = create_max_button(
-
         product,
-
         image_url
-
     )
-
 
 
     try:
 
 
-        if image_url:
+        # ==========================
+        # ЕСЛИ ЕСТЬ ФОТО
+        # ==========================
 
+        if image_url:
 
 
             response = requests.post(
@@ -218,52 +111,41 @@ def send_post(
 
                 json={
 
-
                     "chat_id": TG_CHANNEL_CHAT_ID,
-
 
                     "photo": image_url,
 
-
                     "caption": product,
-
 
                     "reply_markup": reply_markup
 
-
                 },
 
-
                 timeout=20
-
             )
 
 
 
-        else:
+        # ==========================
+        # БЕЗ ФОТО
+        # ==========================
 
+        else:
 
 
             response = requests.post(
 
-
                 f"{API_URL}/sendMessage",
-
 
                 json={
 
-
                     "chat_id": TG_CHANNEL_CHAT_ID,
-
 
                     "text": product,
 
-
                     "reply_markup": reply_markup
 
-
                 },
-
 
                 timeout=20
 
@@ -299,13 +181,9 @@ def send_post(
 
 
         print(
-
             "TELEGRAM POST ERROR:",
-
             e,
-
             flush=True
-
         )
 
 
