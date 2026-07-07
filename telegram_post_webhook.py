@@ -11,6 +11,11 @@ API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
 offset = None
 
 
+# хранилище альбомов
+albums = {}
+
+
+
 def get_updates():
 
     global offset
@@ -22,7 +27,6 @@ def get_updates():
 
 
     if offset:
-
         params["offset"] = offset
 
 
@@ -42,12 +46,14 @@ def get_updates():
 
 
 
+
 def process_updates():
 
     global offset
 
 
     data = get_updates()
+
 
 
     for update in data.get("result", []):
@@ -73,7 +79,6 @@ def process_updates():
 
 
         if not photo:
-
             continue
 
 
@@ -84,7 +89,9 @@ def process_updates():
         )
 
 
-        product = caption or "Товар"
+        media_group_id = message.get(
+            "media_group_id"
+        )
 
 
 
@@ -92,20 +99,106 @@ def process_updates():
 
 
 
+        # ==========================
+        # АЛЬБОМ
+        # ==========================
+
+        if media_group_id:
+
+
+            if media_group_id not in albums:
+
+                albums[media_group_id] = {
+
+                    "photos": [],
+
+                    "caption": caption or "Товар",
+
+                    "time": time.time()
+
+                }
+
+
+
+            albums[media_group_id]["photos"].append(
+                file_id
+            )
+
+
+
+            print(
+                "ADD PHOTO TO ALBUM:",
+                media_group_id
+            )
+
+
+
+        else:
+
+
+            print(
+                "NEW SINGLE POST:",
+                caption
+            )
+
+
+            send_post(
+
+                product=caption or "Товар",
+
+                image_url=file_id
+
+            )
+
+
+
+
+    # ==========================
+    # ОТПРАВКА СОБРАННЫХ АЛЬБОМОВ
+    # ==========================
+
+
+    now = time.time()
+
+
+
+    for album_id in list(albums.keys()):
+
+
+        album = albums[album_id]
+
+
+
+        # ждем пока придут все фото
+
+        if now - album["time"] < 2:
+
+            continue
+
+
+
         print(
-            "NEW POST:",
-            product
+            "NEW ALBUM POST:",
+            album["caption"],
+            "PHOTOS:",
+            len(album["photos"])
         )
 
 
 
         send_post(
 
-            product=product,
+            product=album["caption"],
 
-            image_url=file_id
+            image_url=album["photos"]
 
         )
+
+
+
+        del albums[album_id]
+
+
 
 
 
