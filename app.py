@@ -4,11 +4,13 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from routers.max_webhook import router as max_router
 from routers.telegram_webhook import router as telegram_router
+from telegram_listener import start_listener
 
 import secrets
 import base64
 import json
 import requests
+import threading
 
 
 from config import *
@@ -31,6 +33,17 @@ from states import (
 
 
 app = FastAPI()
+
+@app.on_event("startup")
+def startup_event():
+
+    thread = threading.Thread(
+        target=start_listener,
+        daemon=True
+    )
+
+    thread.start()
+
 app.include_router(max_router)
 app.include_router(telegram_router)
 
