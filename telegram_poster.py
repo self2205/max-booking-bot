@@ -49,10 +49,10 @@ def create_max_button(product, image_url=None):
     )
 
 
-    max_url = (
+        max_url = (
         f"https://max.ru/"
         f"{MAX_BOT_USERNAME}"
-        f"?startapp={payload}"
+        f"?start={payload}"
     )
 
 
