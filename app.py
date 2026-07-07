@@ -207,11 +207,11 @@ async def webhook(request: Request):
     # ==========================
     if update_type == "bot_started":
 
-    user_id = data.get("user_id")
-    chat_id = data.get("chat_id")
-    payload = data.get("payload", "")
+        user_id = data.get("user_id")
+        chat_id = data.get("chat_id")
+        payload = data.get("payload", "")
 
-    print("RAW PAYLOAD:", payload)
+        print("RAW PAYLOAD:", payload)
 
 
     # ==========================
