@@ -243,26 +243,14 @@ def start_listener():
     while True:
 
         try:
-
             process_updates()
-
 
         except Exception as e:
 
             print(
-                "ERROR:",
+                "LISTENER ERROR:",
                 e,
                 flush=True
             )
 
-
-        time.sleep(1)
-
-
-
-if __name__ == "__main__":
-
-    start_listener()
-
-
-    time.sleep(1)
+        time.sleep(2)
