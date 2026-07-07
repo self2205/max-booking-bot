@@ -1,8 +1,8 @@
 import time
 import requests
 
-from config import TG_POST_TOKEN, ADMIN_IDS
-from telegram_poster import send_post
+from config import TG_POST_TOKEN
+from telegram_poster import send_post_album
 
 
 API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
@@ -10,253 +10,170 @@ API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
 
 offset = None
 
+albums = {}
 
 
-# ==========================
-# ПОЛУЧЕНИЕ ОБНОВЛЕНИЙ
-# ==========================
 
 def get_updates():
 
     global offset
 
-
     params = {
         "timeout": 30
     }
 
-
     if offset:
-
         params["offset"] = offset
 
 
+    r = requests.get(
+        f"{API_URL}/getUpdates",
+        params=params,
+        timeout=35
+    )
 
-    try:
-
-        response = requests.get(
-
-            f"{API_URL}/getUpdates",
-
-            params=params,
-
-            timeout=35
-
-        )
+    return r.json()
 
 
-        return response.json()
-
-
-
-    except Exception as e:
-
-        print(
-            "GET UPDATES ERROR:",
-            e,
-            flush=True
-        )
-
-        return {}
-
-
-
-
-
-# ==========================
-# ОБРАБОТКА ПОСТОВ
-# ==========================
 
 def process_updates():
 
     global offset
 
 
-    print(
-        "CHECKING TELEGRAM UPDATES",
-        flush=True
-    )
-
-
     data = get_updates()
 
 
-
-    for update in data.get(
-        "result",
-        []
-    ):
+    for update in data.get("result", []):
 
 
         offset = update["update_id"] + 1
 
 
-
-        message = update.get(
-            "message"
-        )
+        message = update.get("message")
 
 
         if not message:
-
             continue
 
 
 
-        # ==========================
-        # ПРОВЕРКА АДМИНА
-        # ==========================
-
-        user_id = message.get(
-            "from",
-            {}
-        ).get(
-            "id"
-        )
-
-
-        if user_id not in ADMIN_IDS:
-
-
-            print(
-                "UNAUTHORIZED USER:",
-                user_id,
-                flush=True
-            )
-
-
-            continue
-
-
-
-
-
-        photo = message.get(
-            "photo"
-        )
-
+        photo = message.get("photo")
 
 
         if not photo:
-
-            print(
-                "MESSAGE WITHOUT PHOTO SKIPPED",
-                flush=True
-            )
-
             continue
-
-
 
 
 
         caption = message.get(
             "caption",
-            ""
+            "Товар"
         )
 
-
-
-        product = caption or "Товар"
-
-
-
-
-
-        # ==========================
-        # БЕРЁМ PHOTO FILE ID
-        # ==========================
 
         file_id = photo[-1]["file_id"]
 
 
 
-        print(
-            "NEW POST:",
-            product,
-            flush=True
+        media_group_id = message.get(
+            "media_group_id"
         )
 
 
 
-        print(
-            "PHOTO FILE ID:",
-            file_id,
-            flush=True
+        # ==========================
+        # ЕСЛИ ЭТО АЛЬБОМ
+        # ==========================
+
+        if media_group_id:
+
+
+            if media_group_id not in albums:
+
+                albums[media_group_id] = {
+                    "photos": [],
+                    "caption": caption
+                }
+
+
+            albums[media_group_id]["photos"].append(
+                file_id
+            )
+
+
+            print(
+                "ADD PHOTO TO ALBUM",
+                media_group_id
+            )
+
+
+        else:
+
+
+            send_post_album(
+
+                product=caption,
+
+                photos=[file_id]
+
+            )
+
+
+
+    # отправляем накопленные альбомы
+
+    send_albums()
+
+
+
+def send_albums():
+
+
+    global albums
+
+
+    for album_id in list(albums.keys()):
+
+
+        album = albums[album_id]
+
+
+        # ждём пока Telegram пришлёт все фото
+
+        if len(album["photos"]) < 2:
+            continue
+
+
+
+        send_post_album(
+
+            product=album["caption"],
+
+            photos=album["photos"]
+
         )
 
 
-
-
-
-        try:
-
-
-            result = send_post(
-
-                product=product,
-
-                image_url=file_id
-
-            )
-
-
-
-            print(
-                "POST RESULT:",
-                result,
-                flush=True
-            )
+        del albums[album_id]
 
 
 
 
-        except Exception as e:
+while True:
 
 
-            print(
-                "SEND POST ERROR:",
-                e,
-                flush=True
-            )
+    try:
+
+        process_updates()
 
 
+    except Exception as e:
+
+        print(
+            "ERROR:",
+            e
+        )
 
 
-
-
-# ==========================
-# ЗАПУСК
-# ==========================
-
-def start_listener():
-
-
-    print(
-        "STARTING TELEGRAM LISTENER",
-        flush=True
-    )
-
-
-
-    while True:
-
-
-        try:
-
-            process_updates()
-
-
-
-        except Exception as e:
-
-
-            print(
-                "LISTENER ERROR:",
-                e,
-                flush=True
-            )
-
-
-
-        time.sleep(2)
+    time.sleep(3)
