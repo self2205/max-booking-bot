@@ -11,6 +11,9 @@ API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
 offset = None
 
 
+# ==========================
+# GET TELEGRAM UPDATES
+# ==========================
 
 def get_updates():
 
@@ -43,6 +46,10 @@ def get_updates():
 
 
 
+# ==========================
+# PROCESS MESSAGES
+# ==========================
+
 def process_updates():
 
     global offset
@@ -52,7 +59,10 @@ def process_updates():
 
 
 
-    for update in data.get("result", []):
+    for update in data.get(
+        "result",
+        []
+    ):
 
 
         offset = update["update_id"] + 1
@@ -75,6 +85,8 @@ def process_updates():
         )
 
 
+        # пропускаем сообщения без фото
+
         if not photo:
 
             continue
@@ -87,17 +99,42 @@ def process_updates():
         )
 
 
+
         product = caption or "Товар"
 
 
 
-        file_id = photo[-1]["file_id"]
+        file_id = photo[-1].get(
+            "file_id"
+        )
+
+
+
+        if not file_id:
+
+            continue
 
 
 
         print(
-            "NEW POST:",
+            "========== NEW TELEGRAM POST =========="
+        )
+
+
+        print(
+            "PRODUCT:",
             product
+        )
+
+
+        print(
+            "PHOTO:",
+            file_id
+        )
+
+
+        print(
+            "========================================"
         )
 
 
@@ -112,12 +149,14 @@ def process_updates():
 
 
 
+# ==========================
+# BACKGROUND WORKER
+# ==========================
 
 def start_listener():
 
-
     print(
-        "TELEGRAM POST LISTENER STARTED"
+        "TELEGRAM LISTENER STARTED"
     )
 
 
@@ -130,6 +169,7 @@ def start_listener():
 
 
         except Exception as e:
+
 
             print(
                 "TELEGRAM LISTENER ERROR:",
