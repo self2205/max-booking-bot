@@ -8,3 +8,9 @@ MAX_BOT_USERNAME = "se13456903_bot"
 
 ADMIN_LOGIN = "admin"
 ADMIN_PASSWORD = "admin123"
+
+# Telegram пользователи, которые получают заявки и могут управлять ботом
+ADMIN_IDS = [
+    441725473,
+    576013973
+]
