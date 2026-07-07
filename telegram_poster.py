@@ -1,7 +1,6 @@
 import json
 import base64
 import requests
-import uuid
 
 from database import save_product
 
@@ -17,6 +16,7 @@ API_URL = (
 )
 
 
+
 # ==================================
 # ENCODE PAYLOAD ДЛЯ MAX
 # ==================================
@@ -28,12 +28,11 @@ def encode_payload(data: dict):
         ensure_ascii=False
     )
 
-    encoded = base64.urlsafe_b64encode(
+    return base64.urlsafe_b64encode(
         raw.encode("utf-8")
     ).decode("utf-8")
 
 
-    return encoded
 
 
 
@@ -41,17 +40,9 @@ def encode_payload(data: dict):
 # КНОПКА MAX
 # ==================================
 
-def create_max_button(product, image_url=None):
-
-
-    product_id = str(uuid.uuid4())[:8]
-
-
-    save_product(
-        product_id,
-        product,
-        image_url
-    )
+def create_max_button(
+        product_id
+):
 
 
     max_url = (
@@ -77,20 +68,26 @@ def create_max_button(product, image_url=None):
         ]
 
     }
+
+
+
+
+
 # ==================================
 # ОТПРАВКА ПОСТА В КАНАЛ
 # ==================================
 
 def send_post(
         product,
-        image_url=None
+        image_url=None,
+        product_id=None
 ):
 
 
     reply_markup = create_max_button(
-        product,
-        image_url
+        product_id
     )
+
 
 
     try:
@@ -143,21 +140,60 @@ def send_post(
 
 
 
-        print(
-            "========== POST TO CHANNEL =========="
-        )
 
-        print(
-            response.text
-        )
+
+        data = response.json()
+
+
 
         print(
-            "======================================"
+            "========== POST TO CHANNEL ==========",
+            flush=True
+        )
+
+
+        print(
+            data,
+            flush=True
+        )
+
+
+        print(
+            "======================================",
+            flush=True
         )
 
 
 
-        return response.json()
+
+        # сохраняем товар ПОСЛЕ публикации,
+        # когда уже есть message_id
+
+
+        message_id = (
+            data
+            .get("result", {})
+            .get("message_id")
+        )
+
+
+
+        save_product(
+
+            product_id=product_id,
+
+            product=product,
+
+            image_url=image_url,
+
+            telegram_message_id=message_id
+
+        )
+
+
+
+        return data
+
 
 
 
@@ -166,7 +202,8 @@ def send_post(
 
         print(
             "TELEGRAM POST ERROR:",
-            e
+            e,
+            flush=True
         )
 
 
