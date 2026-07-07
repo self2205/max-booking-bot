@@ -83,7 +83,6 @@ def send_post(
         image_url=None
 ):
 
-
     reply_markup = create_max_button(
         product,
         image_url
@@ -157,5 +156,6 @@ def send_post(
             "POST ERROR:",
             e
         )
+
 
         return {}
