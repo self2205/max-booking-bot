@@ -1,3 +1,5 @@
+import json
+import base64
 import requests
 
 from config import (
@@ -12,44 +14,46 @@ API_URL = (
 )
 
 
-# ==========================
-# СОЗДАНИЕ КНОПКИ MAX
-# ==========================
+# ==================================
+# ENCODE PAYLOAD ДЛЯ MAX
+# ==================================
 
-def create_max_button(product, image_url=None):
+def encode_payload(data: dict):
 
-    import base64
-    import json
-
-
-    payload = {
-
-        "product": product,
-
-        "image_url": image_url
-
-    }
-
+    raw = json.dumps(
+        data,
+        ensure_ascii=False
+    )
 
     encoded = base64.urlsafe_b64encode(
-
-        json.dumps(
-            payload,
-            ensure_ascii=False
-        ).encode("utf-8")
-
+        raw.encode("utf-8")
     ).decode("utf-8")
 
 
+    return encoded
 
-    url = (
 
-        f"https://max.ru/"
-        f"{MAX_BOT_USERNAME}"
-        f"?start={encoded}"
 
+# ==================================
+# КНОПКА MAX
+# ==================================
+
+def create_max_button(product, image_url=None):
+
+
+    payload = encode_payload(
+        {
+            "product": product,
+            "image_url": image_url
+        }
     )
 
+
+    max_url = (
+        f"https://max.ru/"
+        f"{MAX_BOT_USERNAME}"
+        f"?startapp={payload}"
+    )
 
 
     return {
@@ -59,11 +63,8 @@ def create_max_button(product, image_url=None):
             [
 
                 {
-
                     "text": "🟢 Забронировать",
-
-                    "url": url
-
+                    "url": max_url
                 }
 
             ]
@@ -74,14 +75,15 @@ def create_max_button(product, image_url=None):
 
 
 
-# ==========================
+# ==================================
 # ОТПРАВКА ПОСТА В КАНАЛ
-# ==========================
+# ==================================
 
 def send_post(
         product,
         image_url=None
 ):
+
 
     reply_markup = create_max_button(
         product,
@@ -95,7 +97,7 @@ def send_post(
         if image_url:
 
 
-            r = requests.post(
+            response = requests.post(
 
                 f"{API_URL}/sendPhoto",
 
@@ -105,13 +107,13 @@ def send_post(
 
                     "photo": image_url,
 
-                    "caption": f"📦 {product}",
+                    "caption": product,
 
                     "reply_markup": reply_markup
 
                 },
 
-                timeout=15
+                timeout=20
 
             )
 
@@ -119,7 +121,7 @@ def send_post(
         else:
 
 
-            r = requests.post(
+            response = requests.post(
 
                 f"{API_URL}/sendMessage",
 
@@ -127,25 +129,33 @@ def send_post(
 
                     "chat_id": TG_CHANNEL_CHAT_ID,
 
-                    "text": f"📦 {product}",
+                    "text": product,
 
                     "reply_markup": reply_markup
 
                 },
 
-                timeout=15
+                timeout=20
 
             )
 
 
 
         print(
-            "POST RESULT:",
-            r.text
+            "========== POST TO CHANNEL =========="
+        )
+
+        print(
+            response.text
+        )
+
+        print(
+            "======================================"
         )
 
 
-        return r.json()
+
+        return response.json()
 
 
 
@@ -153,7 +163,7 @@ def send_post(
 
 
         print(
-            "POST ERROR:",
+            "TELEGRAM POST ERROR:",
             e
         )
 
