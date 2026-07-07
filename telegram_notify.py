@@ -1,35 +1,30 @@
 import requests
 
-from config import (
-    TG_TOKEN,
-    TG_CHAT_ID
-)
+from config import TG_TOKEN, TG_CHAT_ID
 
 
-API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
+API_URL = f"https://api.telegram.org/bot{TG_TOKEN}"
 
 
 
-def send_booking_notification(
-        booking_id,
+def send_booking_to_telegram(
         product,
         name,
         phone,
-        image_url=None
+        image_url=None,
+        booking_id=None
 ):
 
     text = f"""
-🟢 НОВАЯ ЗАЯВКА
+🟢 НОВАЯ ЗАЯВКА НА БРОНИРОВАНИЕ
 
 №{booking_id}
 
 📦 {product}
 
-👤 Имя:
-{name}
+👤 Имя: {name}
 
-📞 Телефон:
-{phone}
+📞 Телефон: {phone}
 """
 
 
@@ -37,59 +32,38 @@ def send_booking_notification(
 
         if image_url:
 
-            response = requests.post(
-
+            requests.post(
                 f"{API_URL}/sendPhoto",
-
                 json={
                     "chat_id": TG_CHAT_ID,
                     "photo": image_url,
                     "caption": text
                 },
-
                 timeout=20
-
             )
-
 
         else:
 
-            response = requests.post(
-
+            requests.post(
                 f"{API_URL}/sendMessage",
-
                 json={
                     "chat_id": TG_CHAT_ID,
                     "text": text
                 },
-
                 timeout=20
-
             )
 
 
         print(
-            "========== SEND BOOKING TO TG =========="
+            "TELEGRAM BOOKING SENT",
+            flush=True
         )
-
-        print(
-            response.text
-        )
-
-        print(
-            "========================================="
-        )
-
-
-        return response.json()
-
 
 
     except Exception as e:
 
         print(
             "TELEGRAM NOTIFY ERROR:",
-            e
+            e,
+            flush=True
         )
-
-        return {}
