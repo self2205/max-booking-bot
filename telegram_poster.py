@@ -12,9 +12,7 @@ from config import (
 )
 
 
-API_URL = (
-    f"https://api.telegram.org/bot{TG_POST_TOKEN}"
-)
+API_URL = f"https://api.telegram.org/bot{TG_POST_TOKEN}"
 
 
 
@@ -35,20 +33,24 @@ def encode_payload(data: dict):
 
 
 
-
 # ==================================
 # КНОПКА MAX
 # ==================================
 
-def create_max_button(product, image_url=None):
+def create_max_button(
+        product,
+        image_url=None
+):
 
     product_id = str(uuid.uuid4())[:8]
 
 
+    # пока сохраняем без message_id
     save_product(
         product_id,
         product,
-        image_url
+        image_url,
+        None
     )
 
 
@@ -59,7 +61,8 @@ def create_max_button(product, image_url=None):
     )
 
 
-    return {
+    return product_id, {
+
 
         "inline_keyboard": [
 
@@ -89,18 +92,15 @@ def send_post(
 ):
 
 
-    reply_markup = create_max_button(
+    product_id, reply_markup = create_max_button(
         product,
         image_url
     )
 
 
+
     try:
 
-
-        # ==========================
-        # ЕСЛИ ЕСТЬ ФОТО
-        # ==========================
 
         if image_url:
 
@@ -122,13 +122,9 @@ def send_post(
                 },
 
                 timeout=20
+
             )
 
-
-
-        # ==========================
-        # БЕЗ ФОТО
-        # ==========================
 
         else:
 
@@ -154,26 +150,55 @@ def send_post(
 
 
 
-        print(
-            "========== POST TO CHANNEL ==========",
-            flush=True
-        )
+        data = response.json()
+
 
 
         print(
-            response.text,
-            flush=True
+            "========== POST TO CHANNEL =========="
         )
-
 
         print(
-            "======================================",
-            flush=True
+            data
+        )
+
+        print(
+            "======================================"
         )
 
 
 
-        return response.json()
+        # ==========================
+        # СОХРАНЯЕМ MESSAGE ID
+        # ==========================
+
+        if data.get("ok"):
+
+
+            message_id = data["result"]["message_id"]
+
+
+            save_product(
+
+                product_id,
+
+                product,
+
+                image_url,
+
+                message_id
+
+            )
+
+
+            print(
+                "CHANNEL MESSAGE ID:",
+                message_id
+            )
+
+
+
+        return data
 
 
 
@@ -182,8 +207,7 @@ def send_post(
 
         print(
             "TELEGRAM POST ERROR:",
-            e,
-            flush=True
+            e
         )
 
 
