@@ -8,11 +8,21 @@ from config import (
 
 from telegram_service import handle_callback
 
+from reply_manager import (
+    set_reply_mode,
+    get_reply_client
+)
+
+from max_service import send_message_max
+
+
 
 API_URL = f"https://api.telegram.org/bot{TG_TOKEN}"
 
 
 offset = None
+
+
 
 
 
@@ -62,6 +72,7 @@ def get_updates():
         return result
 
 
+
     except Exception as e:
 
 
@@ -78,8 +89,10 @@ def get_updates():
 
 
 
+
+
 # ==========================
-# SEND MESSAGE
+# SEND MESSAGE ADMIN
 # ==========================
 
 def send_admin_message(
@@ -87,8 +100,8 @@ def send_admin_message(
         text
 ):
 
-
     try:
+
 
         requests.post(
 
@@ -107,14 +120,18 @@ def send_admin_message(
         )
 
 
+
     except Exception as e:
 
 
         print(
-            "SEND MESSAGE ERROR:",
+            "SEND ADMIN ERROR:",
             e,
             flush=True
         )
+
+
+
 
 
 
@@ -139,7 +156,6 @@ def process_updates():
     ):
 
 
-
         offset = update["update_id"] + 1
 
 
@@ -149,6 +165,8 @@ def process_updates():
             update,
             flush=True
         )
+
+
 
 
 
@@ -171,7 +189,8 @@ def process_updates():
             )
 
 
-            user_id = callback.get(
+
+            admin_id = callback.get(
                 "from",
                 {}
             ).get(
@@ -180,7 +199,8 @@ def process_updates():
 
 
 
-            if user_id in ADMIN_IDS:
+            if admin_id in ADMIN_IDS:
+
 
 
                 result = handle_callback(
@@ -188,15 +208,14 @@ def process_updates():
                 )
 
 
+
                 print(
-                    "HANDLE CALLBACK RESULT:",
+                    "CALLBACK RESULT:",
                     result,
                     flush=True
                 )
 
 
-
-                # подтверждаем нажатие кнопки
 
                 requests.post(
 
@@ -207,11 +226,19 @@ def process_updates():
                         "callback_query_id":
                         callback["id"]
 
-                    }
+                    },
+
+                    timeout=10
 
                 )
 
 
+
+
+
+                # ==========================
+                # ВКЛЮЧАЕМ РЕЖИМ ОТВЕТА
+                # ==========================
 
                 if isinstance(result, dict):
 
@@ -221,17 +248,50 @@ def process_updates():
                     ) == "reply":
 
 
-                        send_admin_message(
 
-                            user_id,
+                        client_chat_id = result.get(
+                            "chat_id"
+                        )
 
-                            "✅ Клиент найден.\n"
-                            "Chat ID: "
-                            + str(
-                                result["chat_id"]
+
+
+                        if client_chat_id:
+
+
+
+                            set_reply_mode(
+
+                                admin_id,
+
+                                client_chat_id
+
                             )
 
-                        )
+
+
+                            send_admin_message(
+
+                                admin_id,
+
+                                "💬 Режим ответа включён.\n\n"
+                                "Теперь отправьте сообщение клиенту."
+
+                            )
+
+
+
+                        else:
+
+
+
+                            send_admin_message(
+
+                                admin_id,
+
+                                "❌ У клиента нет MAX chat_id"
+
+                            )
+
 
 
             continue
@@ -240,8 +300,10 @@ def process_updates():
 
 
 
+
+
         # ==========================
-        # MESSAGE
+        # MESSAGE FROM ADMIN
         # ==========================
 
         message = update.get(
@@ -252,11 +314,95 @@ def process_updates():
         if message:
 
 
+
             print(
                 "MESSAGE RECEIVED:",
                 message,
                 flush=True
             )
+
+
+
+            admin_id = message.get(
+                "from",
+                {}
+            ).get(
+                "id"
+            )
+
+
+
+            text = message.get(
+                "text",
+                ""
+            )
+
+
+
+            if not text:
+
+                continue
+
+
+
+            if admin_id not in ADMIN_IDS:
+
+                continue
+
+
+
+
+
+
+            # ==========================
+            # ПРОВЕРЯЕМ РЕЖИМ ОТВЕТА
+            # ==========================
+
+            client_chat_id = get_reply_client(
+
+                admin_id
+
+            )
+
+
+
+            if client_chat_id:
+
+
+
+                print(
+
+                    "SENDING TO MAX CLIENT:",
+
+                    client_chat_id,
+
+                    flush=True
+
+                )
+
+
+
+                send_message_max(
+
+                    client_chat_id,
+
+                    text
+
+                )
+
+
+
+                send_admin_message(
+
+                    admin_id,
+
+                    "✅ Сообщение отправлено клиенту"
+
+                )
+
+
+
+                continue
 
 
 
@@ -272,9 +418,13 @@ def start_admin_listener():
 
 
     print(
+
         "🔥 ADMIN LISTENER STARTED",
+
         flush=True
+
     )
+
 
 
     while True:
@@ -282,16 +432,22 @@ def start_admin_listener():
 
         try:
 
+
             process_updates()
+
 
 
         except Exception as e:
 
 
             print(
+
                 "ADMIN LISTENER ERROR:",
+
                 e,
+
                 flush=True
+
             )
 
 
