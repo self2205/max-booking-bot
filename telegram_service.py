@@ -9,7 +9,9 @@ from config import (
 
 from database import (
     change_status,
-    get_bookings
+    get_bookings,
+    save_telegram_message_id,
+    get_booking
 )
 
 
@@ -188,6 +190,10 @@ def send_to_telegram(
                 message_id = result["result"]["message_id"]
 
 
+                save_telegram_message_id(
+                    booking_id,
+                    message_id
+                )
 
         except Exception as e:
 
@@ -496,3 +502,90 @@ def handle_message(message, send_func):
     ):
 
         return
+
+
+# ==================================
+# CALLBACK BUTTONS
+# ==================================
+
+def handle_callback(callback):
+
+
+    data = callback.get(
+        "data",
+        ""
+    )
+
+
+    if data.startswith("done_"):
+
+
+        booking_id = int(
+            data.replace(
+                "done_",
+                ""
+            )
+        )
+
+
+        change_status(
+            booking_id
+        )
+
+
+        return "✅ Заявка выполнена"
+
+
+
+    elif data.startswith("cancel_"):
+
+
+        booking_id = int(
+            data.replace(
+                "cancel_",
+                ""
+            )
+        )
+
+
+        change_status(
+            booking_id
+        )
+
+
+        return "❌ Заявка отменена"
+
+
+
+    elif data.startswith("reply_"):
+
+
+        booking_id = int(
+            data.replace(
+                "reply_",
+                ""
+            )
+        )
+
+
+        booking = get_booking(
+            booking_id
+        )
+
+
+        if not booking:
+
+            return "❌ Заявка не найдена"
+
+
+
+        return {
+
+            "action": "reply",
+
+            "chat_id": booking["client_chat_id"]
+
+        }
+
+
+    return None
