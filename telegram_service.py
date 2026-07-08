@@ -15,6 +15,16 @@ from database import (
 )
 
 
+from reply_manager import (
+    set_reply_mode,
+    get_reply_client,
+    clear_reply_mode
+)
+
+
+from max_service import send_message_max
+
+
 
 API_URL = f"https://api.telegram.org/bot{TG_TOKEN}"
 
@@ -98,7 +108,6 @@ def send_to_telegram(
 """
 
 
-
     message_id = None
 
 
@@ -121,10 +130,6 @@ def send_to_telegram(
 
 
 
-            # ==========================
-            # ЕСЛИ ЕСТЬ ФОТО
-            # ==========================
-
             if photo:
 
 
@@ -146,7 +151,6 @@ def send_to_telegram(
                     timeout=20
 
                 )
-
 
 
             else:
@@ -191,9 +195,14 @@ def send_to_telegram(
 
 
                 save_telegram_message_id(
+
                     booking_id,
+
                     message_id
+
                 )
+
+
 
         except Exception as e:
 
@@ -233,7 +242,6 @@ def send_to_channel(
 
             payload = {
 
-
                 "chat_id": TG_CHANNEL_CHAT_ID,
 
                 "photo": photo,
@@ -251,7 +259,6 @@ def send_to_channel(
 
 
                     "inline_keyboard":[
-
 
                         [
 
@@ -271,7 +278,6 @@ def send_to_channel(
 
 
 
-
             response = requests.post(
 
                 f"{API_URL}/sendPhoto",
@@ -281,7 +287,6 @@ def send_to_channel(
                 timeout=20
 
             )
-
 
 
         else:
@@ -305,13 +310,11 @@ def send_to_channel(
 
 
 
-
         print(
             "CHANNEL POST:",
             response.text,
             flush=True
         )
-
 
 
         return response.json()
@@ -326,6 +329,9 @@ def send_to_channel(
             e,
             flush=True
         )
+
+
+
 
 
 
@@ -358,6 +364,7 @@ def handle_admin_commands(message, send_func):
     if user_id not in ADMIN_IDS:
 
         return
+
 
 
 
@@ -397,6 +404,7 @@ def handle_admin_commands(message, send_func):
 
 
 
+
     elif text == "/list":
 
 
@@ -428,6 +436,8 @@ def handle_admin_commands(message, send_func):
 
 
 
+
+
 # ==================================
 # ПОСТИНГ ИЗ ТГ
 # ==================================
@@ -443,9 +453,11 @@ def handle_post_generator(message, send_func):
     )
 
 
+
     if user_id not in ADMIN_IDS:
 
         return False
+
 
 
 
@@ -482,6 +494,7 @@ def handle_post_generator(message, send_func):
 
 
 
+
 # ==================================
 # DISPATCHER
 # ==================================
@@ -489,19 +502,84 @@ def handle_post_generator(message, send_func):
 def handle_message(message, send_func):
 
 
+    user_id = message.get(
+        "from",
+        {}
+    ).get(
+        "id"
+    )
+
+
+    text = message.get(
+        "text",
+        ""
+    )
+
+
+
+    # ==============================
+    # ОТВЕТ КЛИЕНТУ MAX
+    # ==============================
+
+    client_chat_id = get_reply_client(
+        user_id
+    )
+
+
+
+    if client_chat_id and text:
+
+
+        send_message_max(
+
+            client_chat_id,
+
+            text
+
+        )
+
+
+        clear_reply_mode(
+            user_id
+        )
+
+
+        send_func(
+            "✅ Сообщение отправлено клиенту MAX"
+        )
+
+
+        return
+
+
+
+
+
+
     handle_admin_commands(
+
         message,
+
         send_func
+
     )
 
 
 
     if handle_post_generator(
+
         message,
+
         send_func
+
     ):
 
         return
+
+
+
+
+
 
 
 # ==================================
@@ -515,6 +593,7 @@ def handle_callback(callback):
         "data",
         ""
     )
+
 
 
     if data.startswith("done_"):
@@ -534,6 +613,8 @@ def handle_callback(callback):
 
 
         return "✅ Заявка выполнена"
+
+
 
 
 
@@ -557,6 +638,9 @@ def handle_callback(callback):
 
 
 
+
+
+
     elif data.startswith("reply_"):
 
 
@@ -568,24 +652,48 @@ def handle_callback(callback):
         )
 
 
+
         booking = get_booking(
             booking_id
         )
 
 
+
         if not booking:
+
 
             return "❌ Заявка не найдена"
 
 
 
-        return {
 
-            "action": "reply",
 
-            "chat_id": booking["client_chat_id"]
+        client_chat_id = booking["client_chat_id"]
 
-        }
+
+
+        if not client_chat_id:
+
+
+            return "❌ Нет MAX chat_id клиента"
+
+
+
+
+
+        set_reply_mode(
+
+            callback["from"]["id"],
+
+            client_chat_id
+
+        )
+
+
+
+        return "✍️ Напишите сообщение клиенту"
+
+
 
 
     return None
