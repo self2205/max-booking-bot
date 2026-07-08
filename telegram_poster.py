@@ -171,21 +171,22 @@ def send_post(
 
             if result.get("ok"):
 
-
-                first_message_id = (
-                    result["result"][0]["message_id"]
-                )
+                first_message_id = result["result"][0]["message_id"]
 
 
                 button_response = requests.post(
 
-                    f"{API_URL}/editMessageReplyMarkup",
+                    f"{API_URL}/sendMessage",
 
                     json={
 
                         "chat_id": TG_CHANNEL_CHAT_ID,
 
-                        "message_id": first_message_id,
+                        "text": "👇 Для бронирования нажмите кнопку",
+
+                        "reply_to_message_id": first_message_id,
+
+                        "allow_sending_without_reply": True,
 
                         "reply_markup": reply_markup
 
@@ -197,21 +198,14 @@ def send_post(
 
 
                 print(
-
-                    "BUTTON RESULT:",
-
-                    button_response.text,
-
+                    "========== BUTTON RESULT ==========",
                     flush=True
-
                 )
 
-
-
-            return result
-
-
-
+                print(
+                    button_response.text,
+                    flush=True
+                )
 
 
 
