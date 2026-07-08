@@ -47,54 +47,91 @@ def startup_event():
 
 
     print(
-        "🔥 STARTING TELEGRAM LISTENERS",
+        "🔥 STARTING TELEGRAM SERVICES",
         flush=True
     )
 
 
 
     # ==========================
-    # BOT ДЛЯ ПОСТИНГА ТОВАРОВ
+    # ПОСТИНГ ТОВАРОВ
     # TG_POST_TOKEN
     # ==========================
 
-    post_thread = threading.Thread(
-
-        target=start_listener,
-
-        daemon=True
-
-    )
+    try:
 
 
-    post_thread.start()
+        post_thread = threading.Thread(
+
+            target=start_listener,
+
+            daemon=True
+
+        )
+
+
+        post_thread.start()
+
+
+        print(
+            "✅ POST LISTENER STARTED",
+            flush=True
+        )
+
+
+    except Exception as e:
+
+
+        print(
+            "❌ POST LISTENER ERROR:",
+            e,
+            flush=True
+        )
+
 
 
 
     # ==========================
-    # BOT ДЛЯ КНОПОК ЗАЯВОК
+    # ОБРАБОТКА ЗАЯВОК
     # TG_TOKEN
     # ==========================
 
-    admin_thread = threading.Thread(
-
-        target=start_admin_listener,
-
-        daemon=True
-
-    )
+    try:
 
 
-    admin_thread.start()
+        admin_thread = threading.Thread(
+
+            target=start_admin_listener,
+
+            daemon=True
+
+        )
+
+
+        admin_thread.start()
+
+
+        print(
+            "✅ ADMIN LISTENER STARTED",
+            flush=True
+        )
+
+
+    except Exception as e:
+
+
+        print(
+            "❌ ADMIN LISTENER ERROR:",
+            e,
+            flush=True
+        )
 
 
 
     print(
-        "🔥 ALL TELEGRAM LISTENERS STARTED",
+        "🔥 TELEGRAM SERVICES RUNNING",
         flush=True
     )
-
-
 
 # ==========================
 # ROUTERS
