@@ -7,6 +7,7 @@ from routers.max_webhook import router as max_router
 from routers.telegram_webhook import router as telegram_router
 
 from telegram_listener import start_listener
+from telegram_admin_listener import start_admin_listener
 
 import secrets
 import base64
@@ -36,32 +37,64 @@ from states import (
 app = FastAPI()
 
 
+
 # ==========================
-# START TELEGRAM LISTENER
+# START TELEGRAM LISTENERS
 # ==========================
 
 @app.on_event("startup")
 def startup_event():
 
+
     print(
-        "🔥 STARTING TELEGRAM LISTENER",
+        "🔥 STARTING TELEGRAM LISTENERS",
         flush=True
     )
 
 
-    thread = threading.Thread(
+
+    # ==========================
+    # BOT ДЛЯ ПОСТИНГА ТОВАРОВ
+    # TG_POST_TOKEN
+    # ==========================
+
+    post_thread = threading.Thread(
+
         target=start_listener,
-        daemon=False
+
+        daemon=True
+
     )
 
 
-    thread.start()
+    post_thread.start()
+
+
+
+    # ==========================
+    # BOT ДЛЯ КНОПОК ЗАЯВОК
+    # TG_TOKEN
+    # ==========================
+
+    admin_thread = threading.Thread(
+
+        target=start_admin_listener,
+
+        daemon=True
+
+    )
+
+
+    admin_thread.start()
+
 
 
     print(
-        "🔥 TELEGRAM LISTENER STARTED",
+        "🔥 ALL TELEGRAM LISTENERS STARTED",
         flush=True
     )
+
+
 
 # ==========================
 # ROUTERS
@@ -72,12 +105,12 @@ app.include_router(max_router)
 app.include_router(telegram_router)
 
 
+
 # ==========================
 # DATABASE INIT
 # ==========================
 
 init_db()
-
 
 
 # ==========================
