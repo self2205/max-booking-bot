@@ -91,11 +91,13 @@ def get_updates():
 
     except Exception as e:
 
+
         print(
             "GET UPDATES ERROR:",
             e,
             flush=True
         )
+
 
         return {}
 
@@ -135,11 +137,14 @@ def send_telegram(
 
     except Exception as e:
 
+
         print(
             "SEND TG ERROR:",
             e,
             flush=True
         )
+
+
 
 
 
@@ -183,6 +188,9 @@ def process_callback(callback):
 
 
 
+
+
+
     # ======================
     # ОТВЕТИТЬ
     # ======================
@@ -216,7 +224,9 @@ def process_callback(callback):
 
             )
 
+
             return
+
 
 
 
@@ -236,6 +246,7 @@ def process_callback(callback):
                 "❌ У клиента нет MAX chat_id"
 
             )
+
 
             return
 
@@ -262,8 +273,11 @@ def process_callback(callback):
         )
 
 
-
         return
+
+
+
+
 
 
 
@@ -287,21 +301,64 @@ def process_callback(callback):
         )
 
 
+
         change_status(
+
             booking_id
+
         )
+
+
+
+        booking = get_booking(
+
+            booking_id
+
+        )
+
+
+
+        if booking:
+
+
+            client_chat_id = booking.get(
+
+                "client_chat_id"
+
+            )
+
+
+
+            if client_chat_id:
+
+
+                send_message_max(
+
+                    client_chat_id,
+
+                    "✅ Ваш заказ забронирован!\n\n"
+                    "Товар подготовлен и ожидает вас.\n\n"
+                    "Вы можете забрать его в магазине с 9:00 до 19:00"
+
+                )
+
 
 
         send_telegram(
 
             admin_id,
 
-            f"✅ Заявка #{booking_id} выполнена"
+            f"✅ Заявка #{booking_id} выполнена.\n"
+            "Клиент получил уведомление."
 
         )
 
 
         return
+
+
+
+
 
 
 
@@ -325,18 +382,64 @@ def process_callback(callback):
         )
 
 
+
         change_status(
+
             booking_id
+
         )
+
+
+
+        booking = get_booking(
+
+            booking_id
+
+        )
+
+
+
+        if booking:
+
+
+            client_chat_id = booking.get(
+
+                "client_chat_id"
+
+            )
+
+
+
+            if client_chat_id:
+
+
+                send_message_max(
+
+                    client_chat_id,
+
+                    "❌ Ваше бронирование отменено.\n\n"
+                    "Данного товара нет в наличии, "
+                    "либо он уже забронирован другим клиентом."
+
+                )
+
 
 
         send_telegram(
 
             admin_id,
 
-            f"❌ Заявка #{booking_id} отменена"
+            f"❌ Заявка #{booking_id} отменена.\n"
+            "Клиент получил уведомление."
 
         )
+
+
+        return
+
+
+
+
 
 
 
@@ -360,8 +463,11 @@ def process_updates():
 
 
     for update in data.get(
+
         "result",
+
         []
+
     ):
 
 
@@ -371,10 +477,17 @@ def process_updates():
 
 
         print(
+
             "FULL UPDATE:",
+
             update,
+
             flush=True
+
         )
+
+
+
 
 
 
@@ -384,16 +497,22 @@ def process_updates():
         # ======================
 
         callback = update.get(
+
             "callback_query"
+
         )
+
 
 
         if callback:
 
 
             process_callback(
+
                 callback
+
             )
+
 
 
             requests.post(
@@ -403,6 +522,7 @@ def process_updates():
                 json={
 
                     "callback_query_id":
+
                     callback["id"]
 
                 },
@@ -418,12 +538,16 @@ def process_updates():
 
 
 
+
+
         # ======================
         # MESSAGE
         # ======================
 
         message = update.get(
+
             "message"
+
         )
 
 
@@ -433,11 +557,18 @@ def process_updates():
 
 
 
+
+
         admin_id = message.get(
+
             "from",
+
             {}
+
         ).get(
+
             "id"
+
         )
 
 
@@ -448,23 +579,36 @@ def process_updates():
 
 
 
+
+
         text = message.get(
+
             "text",
+
             ""
+
         )
 
 
 
         print(
+
             "ADMIN MESSAGE:",
+
             text,
+
             flush=True
+
         )
 
 
 
+
+
         client_chat_id = get_reply_client(
+
             admin_id
+
         )
 
 
@@ -496,6 +640,8 @@ def process_updates():
 
 
 
+
+
 # ==========================
 # START LISTENER
 # ==========================
@@ -519,6 +665,7 @@ def start_admin_listener():
         try:
 
             process_updates()
+
 
 
         except Exception as e:
