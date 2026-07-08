@@ -6,13 +6,58 @@ from config import (
     TG_CHANNEL_CHAT_ID
 )
 
+
 from database import (
     change_status,
     get_bookings
 )
 
 
+
 API_URL = f"https://api.telegram.org/bot{TG_TOKEN}"
+
+
+
+
+
+# ==================================
+# КНОПКИ ЗАЯВКИ
+# ==================================
+
+def booking_keyboard(booking_id):
+
+    return {
+
+        "inline_keyboard": [
+
+            [
+
+                {
+                    "text": "💬 Ответить",
+                    "callback_data": f"reply_{booking_id}"
+                }
+
+            ],
+
+            [
+
+                {
+                    "text": "✅ Выполнено",
+                    "callback_data": f"done_{booking_id}"
+                },
+
+                {
+                    "text": "❌ Отменить",
+                    "callback_data": f"cancel_{booking_id}"
+                }
+
+            ]
+
+        ]
+
+    }
+
+
 
 
 
@@ -21,6 +66,7 @@ API_URL = f"https://api.telegram.org/bot{TG_TOKEN}"
 # ==================================
 
 def send_to_telegram(
+        booking_id,
         product,
         name,
         phone,
@@ -32,6 +78,9 @@ def send_to_telegram(
 
     text = f"""
 📦 НОВАЯ ЗАЯВКА НА БРОНИРОВАНИЕ
+
+
+🆔 Заявка №{booking_id}
 
 
 🛍 Товар:
@@ -47,125 +96,96 @@ def send_to_telegram(
 """
 
 
+
+    message_id = None
+
+
+
     for admin_id in ADMIN_IDS:
 
 
         try:
 
 
-            # =========================
-            # 1. ЕСЛИ ЕСТЬ ID СООБЩЕНИЯ
-            # =========================
+            payload = {
 
-            if channel_message_id:
+                "chat_id": admin_id,
 
-
-                response = requests.post(
-
-                    f"{API_URL}/forwardMessage",
-
-                    data={
-
-                        "chat_id": admin_id,
-
-                        "from_chat_id": TG_CHANNEL_CHAT_ID,
-
-                        "message_id": channel_message_id
-
-                    },
-
-                    timeout=15
-
+                "reply_markup": booking_keyboard(
+                    booking_id
                 )
 
-
-                print(
-                    "FORWARD RESULT:",
-                    response.text,
-                    flush=True
-                )
+            }
 
 
-                requests.post(
 
-                    f"{API_URL}/sendMessage",
+            # ==========================
+            # ЕСЛИ ЕСТЬ ФОТО
+            # ==========================
 
-                    data={
-
-                        "chat_id": admin_id,
-
-                        "text": text
-
-                    },
-
-                    timeout=15
-
-                )
+            if photo:
 
 
-            # =========================
-            # 2. ЕСЛИ ЕСТЬ PHOTO FILE_ID
-            # =========================
+                payload.update({
 
-            elif photo:
+                    "photo": photo,
+
+                    "caption": text
+
+                })
 
 
                 response = requests.post(
 
                     f"{API_URL}/sendPhoto",
 
-                    data={
-
-                        "chat_id": admin_id,
-
-                        "photo": photo,
-
-                        "caption": text
-
-                    },
+                    json=payload,
 
                     timeout=20
 
                 )
 
 
-                print(
-                    "SEND PHOTO RESULT:",
-                    response.text,
-                    flush=True
-                )
-
-
-
-            # =========================
-            # 3. ПРОСТО ТЕКСТ
-            # =========================
 
             else:
+
+
+                payload.update({
+
+                    "text": text
+
+                })
 
 
                 response = requests.post(
 
                     f"{API_URL}/sendMessage",
 
-                    data={
-
-                        "chat_id": admin_id,
-
-                        "text": text
-
-                    },
+                    json=payload,
 
                     timeout=15
 
                 )
 
 
-                print(
-                    "SEND TEXT RESULT:",
-                    response.text,
-                    flush=True
-                )
+
+
+            result = response.json()
+
+
+
+            print(
+                "SEND BOOKING RESULT:",
+                result,
+                flush=True
+            )
+
+
+
+            if result.get("ok"):
+
+
+                message_id = result["result"]["message_id"]
 
 
 
@@ -177,6 +197,12 @@ def send_to_telegram(
                 e,
                 flush=True
             )
+
+
+
+    return message_id
+
+
 
 
 
@@ -201,6 +227,7 @@ def send_to_channel(
 
             payload = {
 
+
                 "chat_id": TG_CHANNEL_CHAT_ID,
 
                 "photo": photo,
@@ -210,11 +237,15 @@ def send_to_channel(
             }
 
 
+
             if button:
+
 
                 payload["reply_markup"] = {
 
+
                     "inline_keyboard":[
+
 
                         [
 
@@ -231,6 +262,8 @@ def send_to_channel(
                     ]
 
                 }
+
+
 
 
             response = requests.post(
@@ -266,11 +299,13 @@ def send_to_channel(
 
 
 
+
         print(
             "CHANNEL POST:",
             response.text,
             flush=True
         )
+
 
 
         return response.json()
@@ -290,6 +325,7 @@ def send_to_channel(
 
 
 
+
 # ==================================
 # ADMIN COMMANDS
 # ==================================
@@ -303,6 +339,7 @@ def handle_admin_commands(message, send_func):
     )
 
 
+
     user_id = message.get(
         "from",
         {}
@@ -311,9 +348,11 @@ def handle_admin_commands(message, send_func):
     )
 
 
+
     if user_id not in ADMIN_IDS:
 
         return
+
 
 
 
@@ -338,6 +377,7 @@ def handle_admin_commands(message, send_func):
 
 
 
+
         change_status(
             booking_id
         )
@@ -350,6 +390,7 @@ def handle_admin_commands(message, send_func):
 
 
 
+
     elif text == "/list":
 
 
@@ -357,6 +398,7 @@ def handle_admin_commands(message, send_func):
 
 
         msg = "📋 Последние заявки\n\n"
+
 
 
         for r in rows[:10]:
@@ -371,7 +413,10 @@ def handle_admin_commands(message, send_func):
             )
 
 
+
         send_func(msg)
+
+
 
 
 
@@ -398,6 +443,7 @@ def handle_post_generator(message, send_func):
 
 
 
+
     text = message.get(
         "text",
         ""
@@ -411,9 +457,11 @@ def handle_post_generator(message, send_func):
 
 
 
+
     send_to_channel(
         text
     )
+
 
 
     send_func(
@@ -422,6 +470,7 @@ def handle_post_generator(message, send_func):
 
 
     return True
+
 
 
 
@@ -438,6 +487,7 @@ def handle_message(message, send_func):
         message,
         send_func
     )
+
 
 
     if handle_post_generator(
