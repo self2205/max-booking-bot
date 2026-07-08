@@ -8,9 +8,9 @@ from config import (
 )
 
 
-from telegram_service import (
-    send_to_channel,
-    handle_admin_commands
+from database import (
+    get_booking,
+    change_status
 )
 
 
@@ -21,15 +21,18 @@ from reply_manager import (
 )
 
 
-from max_service import send_message_max
+from max_service import (
+    send_message_max
+)
 
 
 
 API_URL = f"https://api.telegram.org/bot{TG_TOKEN}"
 
 
-
 offset = None
+
+
 
 
 
@@ -56,9 +59,13 @@ def get_updates():
     try:
 
         r = requests.get(
+
             f"{API_URL}/getUpdates",
+
             params=params,
+
             timeout=35
+
         )
 
 
@@ -75,15 +82,20 @@ def get_updates():
         return data
 
 
+
     except Exception as e:
 
+
         print(
-            "GET ERROR:",
+            "GET UPDATES ERROR:",
             e,
             flush=True
         )
 
+
         return {}
+
+
 
 
 
@@ -92,10 +104,11 @@ def get_updates():
 # SEND TG MESSAGE
 # ==========================
 
-def send_tg(
+def send_telegram(
         chat_id,
         text
 ):
+
 
     try:
 
@@ -118,17 +131,21 @@ def send_tg(
 
     except Exception as e:
 
+
         print(
             "SEND TG ERROR:",
-            e
+            e,
+            flush=True
         )
 
 
 
 
 
+
+
 # ==========================
-# CALLBACK
+# CALLBACK BUTTONS
 # ==========================
 
 def process_callback(callback):
@@ -148,6 +165,13 @@ def process_callback(callback):
     )
 
 
+    print(
+        "CALLBACK:",
+        data,
+        flush=True
+    )
+
+
 
     if admin_id not in ADMIN_IDS:
 
@@ -155,6 +179,11 @@ def process_callback(callback):
 
 
 
+
+
+    # ======================
+    # ОТВЕТИТЬ
+    # ======================
 
     if data.startswith("reply_"):
 
@@ -167,33 +196,40 @@ def process_callback(callback):
         )
 
 
-        from database import get_booking
-
 
         booking = get_booking(
             booking_id
         )
 
 
+
         if not booking:
 
-            send_tg(
+
+            send_telegram(
+
                 admin_id,
+
                 "❌ Заявка не найдена"
+
             )
+
 
             return
 
 
 
-        client_chat_id = booking["client_chat_id"]
+
+        client_chat_id = booking.get(
+            "client_chat_id"
+        )
 
 
 
         if not client_chat_id:
 
 
-            send_tg(
+            send_telegram(
 
                 admin_id,
 
@@ -201,7 +237,9 @@ def process_callback(callback):
 
             )
 
+
             return
+
 
 
 
@@ -214,29 +252,34 @@ def process_callback(callback):
         )
 
 
-        send_tg(
+
+        send_telegram(
 
             admin_id,
 
-            "💬 Режим ответа клиенту включен.\n\n"
-            "Все сообщения будут уходить клиенту в MAX."
+            "💬 Режим ответа включен.\n\n"
+            "Пишите сообщение — оно уйдет клиенту в MAX."
 
         )
 
 
 
+
+
+    # ======================
+    # ВЫПОЛНЕНО
+    # ======================
 
     elif data.startswith("done_"):
 
 
-        from database import change_status
-
-
         booking_id = int(
+
             data.replace(
                 "done_",
                 ""
             )
+
         )
 
 
@@ -244,31 +287,58 @@ def process_callback(callback):
             booking_id
         )
 
+
+        send_telegram(
+
+            admin_id,
+
+            f"✅ Заявка #{booking_id} изменена"
+
+        )
+
+
+
+
+
+
+    # ======================
+    # ОТМЕНА
+    # ======================
 
     elif data.startswith("cancel_"):
 
 
-        from database import change_status
-
-
         booking_id = int(
+
             data.replace(
                 "cancel_",
                 ""
             )
+
         )
 
 
         change_status(
             booking_id
         )
+
+
+        send_telegram(
+
+            admin_id,
+
+            f"❌ Заявка #{booking_id} отменена"
+
+        )
+
+
 
 
 
 
 
 # ==========================
-# PROCESS
+# PROCESS UPDATES
 # ==========================
 
 def process_updates():
@@ -292,9 +362,18 @@ def process_updates():
 
 
 
-        # --------------------------
+        print(
+            "FULL UPDATE:",
+            update,
+            flush=True
+        )
+
+
+
+
+        # ======================
         # BUTTON
-        # --------------------------
+        # ======================
 
         callback = update.get(
             "callback_query"
@@ -302,13 +381,6 @@ def process_updates():
 
 
         if callback:
-
-
-            print(
-                "CALLBACK:",
-                callback,
-                flush=True
-            )
 
 
             process_callback(
@@ -336,9 +408,11 @@ def process_updates():
 
 
 
-        # --------------------------
-        # MESSAGE
-        # --------------------------
+
+        # ======================
+        # MESSAGE FROM ADMIN
+        # ======================
+
 
         message = update.get(
             "message"
@@ -351,12 +425,21 @@ def process_updates():
 
 
 
-        user_id = message.get(
+
+        admin_id = message.get(
             "from",
             {}
         ).get(
             "id"
         )
+
+
+
+        if admin_id not in ADMIN_IDS:
+
+            continue
+
+
 
 
         text = message.get(
@@ -366,30 +449,19 @@ def process_updates():
 
 
 
-        if user_id not in ADMIN_IDS:
-
-            continue
-
-
-
-
         print(
-
             "ADMIN MESSAGE:",
-
             text,
-
             flush=True
-
         )
 
 
 
-        # если админ в режиме ответа
 
         client_chat_id = get_reply_client(
-            user_id
+            admin_id
         )
+
 
 
         if client_chat_id:
@@ -404,34 +476,14 @@ def process_updates():
             )
 
 
-            print(
 
-                "SEND TO CLIENT:",
-                client_chat_id,
+            send_telegram(
 
-                flush=True
+                admin_id,
+
+                "✅ Сообщение отправлено клиенту"
 
             )
-
-
-            continue
-
-
-
-
-
-        # обычные команды
-
-        handle_admin_commands(
-
-            message,
-
-            lambda x: send_tg(
-                user_id,
-                x
-            )
-
-        )
 
 
 
@@ -461,14 +513,11 @@ def start_admin_listener():
 
         except Exception as e:
 
+
             print(
-
                 "ADMIN LISTENER ERROR:",
-
                 e,
-
                 flush=True
-
             )
 
 
