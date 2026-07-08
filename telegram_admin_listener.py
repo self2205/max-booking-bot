@@ -1,7 +1,11 @@
 import time
 import requests
 
-from config import TG_TOKEN, ADMIN_IDS
+from config import (
+    TG_TOKEN,
+    ADMIN_IDS
+)
+
 from telegram_service import handle_callback
 
 
@@ -32,18 +36,85 @@ def get_updates():
 
 
 
-    response = requests.get(
+    try:
 
-        f"{API_URL}/getUpdates",
+        response = requests.get(
 
-        params=params,
+            f"{API_URL}/getUpdates",
 
-        timeout=35
+            params=params,
 
-    )
+            timeout=35
+
+        )
 
 
-    return response.json()
+        result = response.json()
+
+
+        print(
+            "GET UPDATES:",
+            result,
+            flush=True
+        )
+
+
+        return result
+
+
+    except Exception as e:
+
+
+        print(
+            "GET UPDATES ERROR:",
+            e,
+            flush=True
+        )
+
+
+        return {}
+
+
+
+
+
+# ==========================
+# SEND MESSAGE
+# ==========================
+
+def send_admin_message(
+        chat_id,
+        text
+):
+
+
+    try:
+
+        requests.post(
+
+            f"{API_URL}/sendMessage",
+
+            json={
+
+                "chat_id": chat_id,
+
+                "text": text
+
+            },
+
+            timeout=15
+
+        )
+
+
+    except Exception as e:
+
+
+        print(
+            "SEND MESSAGE ERROR:",
+            e,
+            flush=True
+        )
 
 
 
@@ -62,15 +133,27 @@ def process_updates():
 
 
 
-    for update in data.get("result", []):
+    for update in data.get(
+        "result",
+        []
+    ):
+
 
 
         offset = update["update_id"] + 1
 
 
 
+        print(
+            "NEW UPDATE:",
+            update,
+            flush=True
+        )
+
+
+
         # ==========================
-        # КНОПКИ
+        # CALLBACK BUTTON
         # ==========================
 
         callback = update.get(
@@ -81,12 +164,20 @@ def process_updates():
         if callback:
 
 
+            print(
+                "CALLBACK RECEIVED:",
+                callback,
+                flush=True
+            )
+
+
             user_id = callback.get(
                 "from",
                 {}
             ).get(
                 "id"
             )
+
 
 
             if user_id in ADMIN_IDS:
@@ -98,11 +189,49 @@ def process_updates():
 
 
                 print(
-                    "CALLBACK RESULT:",
+                    "HANDLE CALLBACK RESULT:",
                     result,
                     flush=True
                 )
 
+
+
+                # подтверждаем нажатие кнопки
+
+                requests.post(
+
+                    f"{API_URL}/answerCallbackQuery",
+
+                    json={
+
+                        "callback_query_id":
+                        callback["id"]
+
+                    }
+
+                )
+
+
+
+                if isinstance(result, dict):
+
+
+                    if result.get(
+                        "action"
+                    ) == "reply":
+
+
+                        send_admin_message(
+
+                            user_id,
+
+                            "✅ Клиент найден.\n"
+                            "Chat ID: "
+                            + str(
+                                result["chat_id"]
+                            )
+
+                        )
 
 
             continue
@@ -112,7 +241,7 @@ def process_updates():
 
 
         # ==========================
-        # СООБЩЕНИЯ
+        # MESSAGE
         # ==========================
 
         message = update.get(
@@ -120,17 +249,16 @@ def process_updates():
         )
 
 
-        if not message:
-
-            continue
+        if message:
 
 
+            print(
+                "MESSAGE RECEIVED:",
+                message,
+                flush=True
+            )
 
-        print(
-            "ADMIN MESSAGE:",
-            message,
-            flush=True
-        )
+
 
 
 
@@ -142,8 +270,9 @@ def process_updates():
 
 def start_admin_listener():
 
+
     print(
-        "ADMIN LISTENER STARTED",
+        "🔥 ADMIN LISTENER STARTED",
         flush=True
     )
 
