@@ -78,3 +78,33 @@ def get_updates():
 
 
         return {}
+
+# ==========================
+# START
+# ==========================
+
+def start_admin_listener():
+
+    print(
+        "🔥 ADMIN LISTENER STARTED",
+        flush=True
+    )
+
+
+    while True:
+
+        try:
+
+            process_updates()
+
+
+        except Exception as e:
+
+            print(
+                "ADMIN LISTENER ERROR:",
+                e,
+                flush=True
+            )
+
+
+        time.sleep(2)
