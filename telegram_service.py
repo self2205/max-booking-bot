@@ -10,19 +10,8 @@ from config import (
 from database import (
     change_status,
     get_bookings,
-    save_telegram_message_id,
-    get_booking
+    save_telegram_message_id
 )
-
-
-from reply_manager import (
-    set_reply_mode,
-    get_reply_client,
-    clear_reply_mode
-)
-
-
-from max_service import send_message_max
 
 
 
@@ -73,6 +62,8 @@ def booking_keyboard(booking_id):
 
 
 
+
+
 # ==================================
 # ОТПРАВКА ЗАЯВКИ АДМИНАМ
 # ==================================
@@ -106,10 +97,6 @@ def send_to_telegram(
 📞 Телефон:
 {phone}
 """
-
-
-    message_id = None
-
 
 
     for admin_id in ADMIN_IDS:
@@ -215,12 +202,6 @@ def send_to_telegram(
 
 
 
-    return message_id
-
-
-
-
-
 
 
 # ==================================
@@ -242,6 +223,7 @@ def send_to_channel(
 
             payload = {
 
+
                 "chat_id": TG_CHANNEL_CHAT_ID,
 
                 "photo": photo,
@@ -259,6 +241,7 @@ def send_to_channel(
 
 
                     "inline_keyboard":[
+
 
                         [
 
@@ -278,6 +261,7 @@ def send_to_channel(
 
 
 
+
             response = requests.post(
 
                 f"{API_URL}/sendPhoto",
@@ -287,6 +271,7 @@ def send_to_channel(
                 timeout=20
 
             )
+
 
 
         else:
@@ -335,9 +320,6 @@ def send_to_channel(
 
 
 
-
-
-
 # ==================================
 # ADMIN COMMANDS
 # ==================================
@@ -351,7 +333,6 @@ def handle_admin_commands(message, send_func):
     )
 
 
-
     user_id = message.get(
         "from",
         {}
@@ -360,12 +341,9 @@ def handle_admin_commands(message, send_func):
     )
 
 
-
     if user_id not in ADMIN_IDS:
 
         return
-
-
 
 
 
@@ -390,7 +368,6 @@ def handle_admin_commands(message, send_func):
 
 
 
-
         change_status(
             booking_id
         )
@@ -399,7 +376,6 @@ def handle_admin_commands(message, send_func):
         send_func(
             f"✅ Статус заявки #{booking_id} изменён"
         )
-
 
 
 
@@ -435,9 +411,6 @@ def handle_admin_commands(message, send_func):
 
 
 
-
-
-
 # ==================================
 # ПОСТИНГ ИЗ ТГ
 # ==================================
@@ -453,11 +426,9 @@ def handle_post_generator(message, send_func):
     )
 
 
-
     if user_id not in ADMIN_IDS:
 
         return False
-
 
 
 
@@ -481,7 +452,6 @@ def handle_post_generator(message, send_func):
     )
 
 
-
     send_func(
         "✅ Пост опубликован"
     )
@@ -493,67 +463,11 @@ def handle_post_generator(message, send_func):
 
 
 
-
-
 # ==================================
 # DISPATCHER
 # ==================================
 
 def handle_message(message, send_func):
-
-
-    user_id = message.get(
-        "from",
-        {}
-    ).get(
-        "id"
-    )
-
-
-    text = message.get(
-        "text",
-        ""
-    )
-
-
-
-    # ==============================
-    # ОТВЕТ КЛИЕНТУ MAX
-    # ==============================
-
-    client_chat_id = get_reply_client(
-        user_id
-    )
-
-
-
-    if client_chat_id and text:
-
-
-        send_message_max(
-
-            client_chat_id,
-
-            text
-
-        )
-
-
-        clear_reply_mode(
-            user_id
-        )
-
-
-        send_func(
-            "✅ Сообщение отправлено клиенту MAX"
-        )
-
-
-        return
-
-
-
-
 
 
     handle_admin_commands(
@@ -575,125 +489,3 @@ def handle_message(message, send_func):
     ):
 
         return
-
-
-
-
-
-
-
-# ==================================
-# CALLBACK BUTTONS
-# ==================================
-
-def handle_callback(callback):
-
-
-    data = callback.get(
-        "data",
-        ""
-    )
-
-
-
-    if data.startswith("done_"):
-
-
-        booking_id = int(
-            data.replace(
-                "done_",
-                ""
-            )
-        )
-
-
-        change_status(
-            booking_id
-        )
-
-
-        return "✅ Заявка выполнена"
-
-
-
-
-
-    elif data.startswith("cancel_"):
-
-
-        booking_id = int(
-            data.replace(
-                "cancel_",
-                ""
-            )
-        )
-
-
-        change_status(
-            booking_id
-        )
-
-
-        return "❌ Заявка отменена"
-
-
-
-
-
-
-    elif data.startswith("reply_"):
-
-
-        booking_id = int(
-            data.replace(
-                "reply_",
-                ""
-            )
-        )
-
-
-
-        booking = get_booking(
-            booking_id
-        )
-
-
-
-        if not booking:
-
-
-            return "❌ Заявка не найдена"
-
-
-
-
-
-        client_chat_id = booking["client_chat_id"]
-
-
-
-        if not client_chat_id:
-
-
-            return "❌ Нет MAX chat_id клиента"
-
-
-
-
-
-        set_reply_mode(
-
-            callback["from"]["id"],
-
-            client_chat_id
-
-        )
-
-
-
-        return "✍️ Напишите сообщение клиенту"
-
-
-
-
-    return None
