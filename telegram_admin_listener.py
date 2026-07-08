@@ -1,3 +1,6 @@
+import time
+import requests
+
 # ==========================
 # GET UPDATES
 # ==========================
