@@ -47,6 +47,10 @@ def init_db():
 
             image_url TEXT,
 
+            client_chat_id BIGINT,
+
+            telegram_message_id BIGINT,
+
             status TEXT DEFAULT '🟢 Новая',
 
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -59,6 +63,20 @@ def init_db():
     cur.execute("""
         ALTER TABLE bookings
         ADD COLUMN IF NOT EXISTS image_url TEXT;
+    """)
+
+
+
+    cur.execute("""
+        ALTER TABLE bookings
+        ADD COLUMN IF NOT EXISTS client_chat_id BIGINT;
+    """)
+
+
+
+    cur.execute("""
+        ALTER TABLE bookings
+        ADD COLUMN IF NOT EXISTS telegram_message_id BIGINT;
     """)
 
 
@@ -103,7 +121,6 @@ def init_db():
 
 
 
-
 # ==========================
 # SAVE BOOKING
 # ==========================
@@ -112,7 +129,8 @@ def save_booking(
         product,
         name,
         phone,
-        image_url=None
+        image_url=None,
+        client_chat_id=None
 ):
 
     conn = get_connection()
@@ -126,10 +144,11 @@ def save_booking(
             product,
             name,
             phone,
-            image_url
+            image_url,
+            client_chat_id
         )
 
-        VALUES (%s,%s,%s,%s)
+        VALUES (%s,%s,%s,%s,%s)
 
         RETURNING id
 
@@ -138,7 +157,8 @@ def save_booking(
         product,
         name,
         phone,
-        image_url
+        image_url,
+        client_chat_id
     ))
 
 
@@ -167,6 +187,42 @@ def save_booking(
 
 
 # ==========================
+# SAVE TELEGRAM MESSAGE ID
+# ==========================
+
+def save_telegram_message_id(
+        booking_id,
+        telegram_message_id
+):
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+
+    cur.execute("""
+        UPDATE bookings
+
+        SET telegram_message_id=%s
+
+        WHERE id=%s
+
+    """,
+    (
+        telegram_message_id,
+        booking_id
+    ))
+
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+
+
+
+
+# ==========================
 # GET BOOKINGS
 # ==========================
 
@@ -185,6 +241,8 @@ def get_bookings():
             name,
             phone,
             image_url,
+            client_chat_id,
+            telegram_message_id,
             status,
             created_at
 
@@ -212,10 +270,10 @@ def get_bookings():
 
 
 # ==========================
-# CHANGE STATUS
+# GET ONE BOOKING
 # ==========================
 
-def change_status(booking_id):
+def get_booking(booking_id):
 
     conn = get_connection()
     cur = conn.cursor()
@@ -223,7 +281,9 @@ def change_status(booking_id):
 
 
     cur.execute("""
-        SELECT status
+        SELECT
+
+            *
 
         FROM bookings
 
@@ -236,35 +296,31 @@ def change_status(booking_id):
 
 
 
-    booking = cur.fetchone()
+    result = cur.fetchone()
 
 
 
-    if not booking:
+    cur.close()
+    conn.close()
 
-        cur.close()
-        conn.close()
 
-        return
-
+    return result
 
 
 
-    if booking["status"] == "🟢 Новая":
-
-        new_status = "🟡 В работе"
 
 
-    elif booking["status"] == "🟡 В работе":
+# ==========================
+# UPDATE STATUS
+# ==========================
 
-        new_status = "✅ Выполнена"
+def update_booking_status(
+        booking_id,
+        status
+):
 
-
-    else:
-
-        new_status = "🟢 Новая"
-
-
+    conn = get_connection()
+    cur = conn.cursor()
 
 
 
@@ -277,7 +333,7 @@ def change_status(booking_id):
 
     """,
     (
-        new_status,
+        status,
         booking_id
     ))
 
@@ -293,16 +349,64 @@ def change_status(booking_id):
 
 
 
+# ==========================
+# CHANGE STATUS
+# ==========================
+
+def change_status(booking_id):
+
+    booking = get_booking(
+        booking_id
+    )
+
+
+    if not booking:
+
+        return
+
+
+
+    current = booking["status"]
+
+
+
+    if current == "🟢 Новая":
+
+        new_status = "🟡 В работе"
+
+
+    elif current == "🟡 В работе":
+
+        new_status = "✅ Выполнена"
+
+
+    elif current == "❌ Отменена":
+
+        new_status = "🟢 Новая"
+
+
+    else:
+
+        new_status = "🟢 Новая"
+
+
+
+
+    update_booking_status(
+        booking_id,
+        new_status
+    )
+
+
+
+
+
+
 
 # =================================================
 # PRODUCTS FOR MAX
 # =================================================
 
-
-
-# ==========================
-# SAVE PRODUCT
-# ==========================
 
 def save_product(
         product_id,
@@ -353,7 +457,6 @@ def save_product(
 
     cur.close()
     conn.close()
-
 
 
 
