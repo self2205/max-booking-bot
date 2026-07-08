@@ -144,7 +144,10 @@ async def max_webhook(request: Request):
 
                     "image_url": image_url,
 
-                    "channel_message_id": channel_message_id
+                    "channel_message_id": channel_message_id,
+
+                    # сохраняем чат клиента MAX
+                    "client_chat_id": chat_id
 
                 }
 
@@ -155,6 +158,7 @@ async def max_webhook(request: Request):
             send_message_max(
 
                 chat_id,
+
 
                 f"""
 🟢 Бронирование
@@ -329,6 +333,12 @@ async def max_webhook(request: Request):
 
             channel_message_id=state["data"].get(
                 "channel_message_id"
+            ),
+
+
+            # передаем MAX chat клиента
+            client_chat_id=state["data"].get(
+                "client_chat_id"
             )
 
         )
