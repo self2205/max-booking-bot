@@ -356,11 +356,9 @@ def process_callback(callback):
         )
 
 
-
         booking = get_booking(
             booking_id
         )
-
 
 
         change_status(
@@ -368,14 +366,18 @@ def process_callback(callback):
         )
 
 
-
         if booking:
+
+
+            product_name = booking.get(
+                "product",
+                "Не указан"
+            )
 
 
             client_chat_id = booking.get(
                 "client_chat_id"
             )
-
 
 
             if client_chat_id:
@@ -385,7 +387,8 @@ def process_callback(callback):
 
                     client_chat_id,
 
-                    "✅ Ваш заказ забронирован!\n\n"
+                    f"✅ Ваш заказ забронирован!\n\n"
+                    f"📦 Товар:\n{product_name}\n\n"
                     "Товар подготовлен и ожидает вас.\n\n"
                     "Вы можете забрать его в магазине с 9:00 до 19:00\n\n"
                     "Если товар не будет выкуплен в течение 2 дней, бронирование отменится"
@@ -393,10 +396,16 @@ def process_callback(callback):
                 )
 
 
+        else:
+
+            product_name = "Не указан"
+
+
 
         notify_all_admins(
 
             f"✅ Заявка #{booking_id} выполнена.\n\n"
+            f"📦 Товар:\n{product_name}\n\n"
             f"👤 Сотрудник: {admin_name}\n"
             "📩 Клиент получил уведомление."
 
@@ -404,12 +413,6 @@ def process_callback(callback):
 
 
         return
-
-
-
-
-
-
 
     # ======================
     # ОТМЕНА
@@ -428,11 +431,9 @@ def process_callback(callback):
         )
 
 
-
         booking = get_booking(
             booking_id
         )
-
 
 
         change_status(
@@ -440,14 +441,18 @@ def process_callback(callback):
         )
 
 
-
         if booking:
+
+
+            product_name = booking.get(
+                "product",
+                "Не указан"
+            )
 
 
             client_chat_id = booking.get(
                 "client_chat_id"
             )
-
 
 
             if client_chat_id:
@@ -457,17 +462,24 @@ def process_callback(callback):
 
                     client_chat_id,
 
-                    "❌ Ваше бронирование отменено.\n\n"
+                    f"❌ Ваше бронирование отменено.\n\n"
+                    f"📦 Товар:\n{product_name}\n\n"
                     "Данного товара нет в наличии, "
                     "либо он уже забронирован другим клиентом."
 
                 )
 
 
+        else:
+
+            product_name = "Не указан"
+
+
 
         notify_all_admins(
 
             f"❌ Заявка #{booking_id} отменена.\n\n"
+            f"📦 Товар:\n{product_name}\n\n"
             f"👤 Сотрудник: {admin_name}\n"
             "📩 Клиент получил уведомление."
 
@@ -475,6 +487,7 @@ def process_callback(callback):
 
 
         return
+
 
 # ==========================
 # PROCESS UPDATES
