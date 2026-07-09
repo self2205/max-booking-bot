@@ -164,12 +164,6 @@ def notify_all_admins(text):
             text
         )
 
-
-
-
-
-
-
 # ==========================
 # CALLBACK BUTTON
 # ==========================
@@ -207,6 +201,7 @@ def process_callback(callback):
     )
 
 
+
     # ==========================
     # ЗАЩИТА ОТ ДВОЙНОГО НАЖАТИЯ
     # ==========================
@@ -227,14 +222,18 @@ def process_callback(callback):
         return
 
 
-processed_callbacks.append(
-    callback_id
-)
+
+    processed_callbacks.append(
+        callback_id
+    )
 
 
-# оставляем только последние 1000 кнопок
-if len(processed_callbacks) > 1000:
-    processed_callbacks.pop(0)
+    # оставляем только последние 1000 кнопок
+
+    if len(processed_callbacks) > 1000:
+
+        processed_callbacks.pop(0)
+
 
 
     # ==========================
@@ -244,6 +243,12 @@ if len(processed_callbacks) > 1000:
     if admin_id not in ADMIN_IDS:
 
         return
+
+
+
+
+
+
     # ======================
     # ОТВЕТИТЬ
     # ======================
@@ -328,6 +333,12 @@ if len(processed_callbacks) > 1000:
 
         return
 
+
+
+
+
+
+
     # ======================
     # ВЫПОЛНЕНО
     # ======================
@@ -347,17 +358,13 @@ if len(processed_callbacks) > 1000:
 
 
         booking = get_booking(
-
             booking_id
-
         )
 
 
 
         change_status(
-
             booking_id
-
         )
 
 
@@ -366,9 +373,7 @@ if len(processed_callbacks) > 1000:
 
 
             client_chat_id = booking.get(
-
                 "client_chat_id"
-
             )
 
 
@@ -425,17 +430,13 @@ if len(processed_callbacks) > 1000:
 
 
         booking = get_booking(
-
             booking_id
-
         )
 
 
 
         change_status(
-
             booking_id
-
         )
 
 
@@ -444,9 +445,7 @@ if len(processed_callbacks) > 1000:
 
 
             client_chat_id = booking.get(
-
                 "client_chat_id"
-
             )
 
 
@@ -477,21 +476,11 @@ if len(processed_callbacks) > 1000:
 
         return
 
-
-
-
-
-
-
-
-
-
 # ==========================
 # PROCESS UPDATES
 # ==========================
 
 def process_updates():
-
 
     global offset
 
@@ -501,11 +490,8 @@ def process_updates():
 
 
     for update in data.get(
-
         "result",
-
         []
-
     ):
 
 
@@ -515,25 +501,21 @@ def process_updates():
 
 
         print(
-
             "FULL UPDATE:",
-
             update,
-
             flush=True
-
         )
 
 
 
 
 
-
+        # ======================
+        # CALLBACK
+        # ======================
 
         callback = update.get(
-
             "callback_query"
-
         )
 
 
@@ -542,11 +524,8 @@ def process_updates():
 
 
             process_callback(
-
                 callback
-
             )
-
 
 
             requests.post(
@@ -556,7 +535,6 @@ def process_updates():
                 json={
 
                     "callback_query_id":
-
                     callback["id"]
 
                 },
@@ -573,11 +551,12 @@ def process_updates():
 
 
 
+        # ======================
+        # MESSAGE
+        # ======================
 
         message = update.get(
-
             "message"
-
         )
 
 
@@ -588,17 +567,11 @@ def process_updates():
 
 
 
-
         admin_id = message.get(
-
             "from",
-
             {}
-
         ).get(
-
             "id"
-
         )
 
 
@@ -610,35 +583,24 @@ def process_updates():
 
 
 
-
         text = message.get(
-
             "text",
-
             ""
-
         )
 
 
 
         print(
-
             "ADMIN MESSAGE:",
-
             text,
-
             flush=True
-
         )
 
 
 
 
-
         client_chat_id = get_reply_client(
-
             admin_id
-
         )
 
 
@@ -691,7 +653,9 @@ def start_admin_listener():
         return
 
 
+
     listener_running = True
+
 
 
     print(
@@ -700,20 +664,25 @@ def start_admin_listener():
     )
 
 
+
     while True:
+
 
         try:
 
             process_updates()
 
 
+
         except Exception as e:
+
 
             print(
                 "ADMIN LISTENER ERROR:",
                 e,
                 flush=True
             )
+
 
 
         time.sleep(2)
