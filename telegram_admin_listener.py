@@ -31,7 +31,9 @@ API_URL = f"https://api.telegram.org/bot{TG_TOKEN}"
 
 offset = None
 
+processed_callbacks = []
 
+listener_running = False
 
 
 
@@ -205,17 +207,43 @@ def process_callback(callback):
     )
 
 
+    # ==========================
+    # ЗАЩИТА ОТ ДВОЙНОГО НАЖАТИЯ
+    # ==========================
 
-    if admin_id not in ADMIN_IDS:
+    callback_id = callback.get(
+        "id"
+    )
+
+
+    if callback_id in processed_callbacks:
+
+        print(
+            "⚠️ DUPLICATE CALLBACK IGNORED:",
+            callback_id,
+            flush=True
+        )
 
         return
 
 
+processed_callbacks.append(
+    callback_id
+)
 
 
+# оставляем только последние 1000 кнопок
+if len(processed_callbacks) > 1000:
+    processed_callbacks.pop(0)
 
 
+    # ==========================
+    # ПРОВЕРКА АДМИНА
+    # ==========================
 
+    if admin_id not in ADMIN_IDS:
+
+        return
     # ======================
     # ОТВЕТИТЬ
     # ======================
@@ -650,39 +678,42 @@ def process_updates():
 
 def start_admin_listener():
 
+    global listener_running
+
+
+    if listener_running:
+
+        print(
+            "⚠️ ADMIN LISTENER ALREADY RUNNING",
+            flush=True
+        )
+
+        return
+
+
+    listener_running = True
+
 
     print(
-
         "🔥 ADMIN LISTENER STARTED",
-
         flush=True
-
     )
 
 
-
     while True:
-
 
         try:
 
             process_updates()
 
 
-
         except Exception as e:
 
-
             print(
-
                 "ADMIN LISTENER ERROR:",
-
                 e,
-
                 flush=True
-
             )
-
 
 
         time.sleep(2)
