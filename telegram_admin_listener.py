@@ -149,6 +149,22 @@ def send_telegram(
 
 
 
+# ==========================
+# SEND MESSAGE ALL ADMINS
+# ==========================
+
+def notify_all_admins(text):
+
+    for admin in ADMIN_IDS:
+
+        send_telegram(
+            admin,
+            text
+        )
+
+
+
+
 
 
 
@@ -170,6 +186,15 @@ def process_callback(callback):
         {}
     ).get(
         "id"
+    )
+
+
+    admin_name = callback.get(
+        "from",
+        {}
+    ).get(
+        "first_name",
+        "Менеджер"
     )
 
 
@@ -275,15 +300,6 @@ def process_callback(callback):
 
         return
 
-
-
-
-
-
-
-
-
-
     # ======================
     # ВЫПОЛНЕНО
     # ======================
@@ -302,7 +318,7 @@ def process_callback(callback):
 
 
 
-        change_status(
+        booking = get_booking(
 
             booking_id
 
@@ -310,7 +326,7 @@ def process_callback(callback):
 
 
 
-        booking = get_booking(
+        change_status(
 
             booking_id
 
@@ -340,24 +356,21 @@ def process_callback(callback):
                     "Товар подготовлен и ожидает вас.\n\n"
                     "Вы можете забрать его в магазине с 9:00 до 19:00\n\n"
                     "Если товар не будет выкуплен в течение 2 дней, бронирование отменится"
+
                 )
 
 
 
-        send_telegram(
+        notify_all_admins(
 
-            admin_id,
-
-            f"✅ Заявка #{booking_id} выполнена.\n"
-            "Клиент получил уведомление."
+            f"✅ Заявка #{booking_id} выполнена.\n\n"
+            f"👤 Сотрудник: {admin_name}\n"
+            "📩 Клиент получил уведомление."
 
         )
 
 
         return
-
-
-
 
 
 
@@ -383,7 +396,7 @@ def process_callback(callback):
 
 
 
-        change_status(
+        booking = get_booking(
 
             booking_id
 
@@ -391,7 +404,7 @@ def process_callback(callback):
 
 
 
-        booking = get_booking(
+        change_status(
 
             booking_id
 
@@ -425,19 +438,16 @@ def process_callback(callback):
 
 
 
-        send_telegram(
+        notify_all_admins(
 
-            admin_id,
-
-            f"❌ Заявка #{booking_id} отменена.\n"
-            "Клиент получил уведомление."
+            f"❌ Заявка #{booking_id} отменена.\n\n"
+            f"👤 Сотрудник: {admin_name}\n"
+            "📩 Клиент получил уведомление."
 
         )
 
 
         return
-
-
 
 
 
@@ -492,10 +502,6 @@ def process_updates():
 
 
 
-        # ======================
-        # CALLBACK
-        # ======================
-
         callback = update.get(
 
             "callback_query"
@@ -539,10 +545,6 @@ def process_updates():
 
 
 
-
-        # ======================
-        # MESSAGE
-        # ======================
 
         message = update.get(
 
