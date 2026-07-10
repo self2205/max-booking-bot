@@ -327,7 +327,23 @@ async def max_webhook(request: Request):
 
 💬 Сообщение:
 {text}
-"""
+""",
+
+                buttons=[
+
+                    [
+
+                        {
+
+                            "text": "💬 Ответить клиенту",
+
+                            "callback_data": f"reply_{booking_id}"
+
+                        }
+
+                    ]
+
+                ]
 
             )
 
@@ -346,9 +362,6 @@ async def max_webhook(request: Request):
         return {
             "ok": True
         }
-
-
-
 
 
     # ==========================
