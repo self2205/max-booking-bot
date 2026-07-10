@@ -54,7 +54,7 @@ async def max_webhook(request: Request):
 
 
     # ==========================
-    # ЗАПУСК ПО КНОПКЕ БРОНИ
+    # КНОПКИ / СТАРТ БОТА
     # ==========================
 
     if update_type == "bot_started":
@@ -77,6 +77,76 @@ async def max_webhook(request: Request):
             or ""
         )
 
+
+        print(
+            "BUTTON PAYLOAD:",
+            payload
+        )
+
+
+
+        # ==========================
+        # КНОПКА ОТВЕТИТЬ МЕНЕДЖЕРУ
+        # ==========================
+
+        if payload.startswith("reply_client_"):
+
+
+            booking_id = payload.replace(
+                "reply_client_",
+                ""
+            )
+
+
+            state = get_state(
+                user_id
+            )
+
+
+            if state:
+
+
+                set_state(
+
+                    user_id,
+
+                    "WAIT_MANAGER_MESSAGE",
+
+                    {
+
+                        "booking_id": booking_id,
+
+                        "product": state["data"].get(
+                            "product",
+                            "Не указан"
+                        )
+
+                    }
+
+                )
+
+
+            send_message_max(
+
+                chat_id,
+
+                "💬 Напишите сообщение менеджеру.\n\n"
+                "Мы ответим вам в ближайшее время."
+
+            )
+
+
+            return {
+                "ok": True
+            }
+
+
+
+
+
+        # ==========================
+        # КНОПКА БРОНИРОВАНИЯ ТОВАРА
+        # ==========================
 
 
         product_data = get_product(
@@ -145,22 +215,12 @@ async def max_webhook(request: Request):
         else:
 
 
-            set_state(
-
-                user_id,
-
-                "WAIT_PRODUCT",
-
-                {}
-
-            )
-
-
             send_message_max(
 
                 chat_id,
 
-                "👋 Привет!\n\nЧто хотите забронировать?"
+                "👋 Привет!\n\n"
+                "Что хотите забронировать?"
 
             )
 
@@ -174,8 +234,9 @@ async def max_webhook(request: Request):
 
 
 
+
     # ==========================
-    # ОБРАБОТКА СООБЩЕНИЙ
+    # ТОЛЬКО СООБЩЕНИЯ
     # ==========================
 
     if update_type != "message_created":
@@ -227,8 +288,9 @@ async def max_webhook(request: Request):
 
 
 
+
     # ==========================
-    # ОТВЕТ МЕНЕДЖЕРУ
+    # СООБЩЕНИЕ МЕНЕДЖЕРУ
     # ==========================
 
     if state and state["state"] == "WAIT_MANAGER_MESSAGE":
@@ -253,6 +315,7 @@ async def max_webhook(request: Request):
 
                 admin,
 
+
                 f"""
 💬 Сообщение от клиента
 
@@ -275,13 +338,8 @@ async def max_webhook(request: Request):
             chat_id,
 
             "✅ Сообщение отправлено менеджеру.\n\n"
-            "Мы скоро ответим вам."
+            "Мы скоро ответим."
 
-        )
-
-
-        clear_state(
-            user_id
         )
 
 
@@ -294,7 +352,7 @@ async def max_webhook(request: Request):
 
 
     # ==========================
-    # ВВОД ИМЕНИ
+    # ИМЯ
     # ==========================
 
     if state and state["state"] == "WAIT_NAME":
@@ -315,7 +373,6 @@ async def max_webhook(request: Request):
         )
 
 
-
         send_message_max(
 
             chat_id,
@@ -323,7 +380,6 @@ async def max_webhook(request: Request):
             "📞 Введите ваш телефон"
 
         )
-
 
 
         return {
@@ -334,40 +390,33 @@ async def max_webhook(request: Request):
 
 
 
+
     # ==========================
-    # ВВОД ТЕЛЕФОНА
+    # ТЕЛЕФОН
     # ==========================
 
     if state and state["state"] == "WAIT_PHONE":
-
 
 
         state["data"]["phone"] = text
 
 
 
-
         booking_id = create_booking(
-
 
             product=state["data"]["product"],
 
-
             name=state["data"]["name"],
 
-
             phone=state["data"]["phone"],
-
 
             image_url=state["data"].get(
                 "image_url"
             ),
 
-
             channel_message_id=state["data"].get(
                 "channel_message_id"
             ),
-
 
             client_chat_id=state["data"].get(
                 "client_chat_id"
@@ -377,14 +426,9 @@ async def max_webhook(request: Request):
 
 
 
-
-        clear_state(
-            user_id
-        )
+        product = state["data"]["product"]
 
 
-
-        # сохраняем возможность ответа менеджеру
 
         set_state(
 
@@ -396,11 +440,12 @@ async def max_webhook(request: Request):
 
                 "booking_id": booking_id,
 
-                "product": state["data"]["product"]
+                "product": product
 
             }
 
         )
+
 
 
 
@@ -410,10 +455,10 @@ async def max_webhook(request: Request):
 
 
             f"""
-✅ Заявка на бронирование создана!
+✅ Заявка создана!
 
 📦 Товар:
-{state["data"]["product"]}
+{product}
 
 🆔 Номер:
 #{booking_id}
@@ -423,6 +468,25 @@ async def max_webhook(request: Request):
 
 Если нужно уточнить детали — нажмите кнопку ниже.
 """,
+
+
+            buttons=[
+
+                [
+
+                    {
+
+                        "type": "callback",
+
+                        "text": "💬 Ответить менеджеру",
+
+                        "payload": f"reply_client_{booking_id}"
+
+                    }
+
+                ]
+
+            ]
 
         )
 
@@ -434,9 +498,8 @@ async def max_webhook(request: Request):
 
 
 
-
     # ==========================
-    # НЕТ АКТИВНОЙ ЗАЯВКИ
+    # НЕТ БРОНИ
     # ==========================
 
     send_message_max(
