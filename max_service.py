@@ -10,7 +10,13 @@ API_URL = "https://platform-api2.max.ru"
 # =========================
 # ОТПРАВКА СООБЩЕНИЯ
 # =========================
-def send_message_max(chat_id, text):
+
+def send_message_max(
+        chat_id,
+        text,
+        buttons=None
+):
+
     url = f"{API_URL}/messages"
 
     headers = {
@@ -22,19 +28,47 @@ def send_message_max(chat_id, text):
         "chat_id": chat_id
     }
 
+
     payload = {
         "text": text
     }
 
+
+    # =========================
+    # КНОПКИ MAX
+    # =========================
+
+    if buttons:
+
+        payload["attachments"] = [
+            {
+                "type": "inline_keyboard",
+                "payload": {
+                    "buttons": buttons
+                }
+            }
+        ]
+
+
+
     try:
+
         r = requests.post(
+
             url,
+
             headers=headers,
+
             params=params,
+
             json=payload,
+
             timeout=15,
+
             verify=False
+
         )
+
 
         print("========== SEND TO MAX ==========")
         print("REQUEST URL:", r.request.url)
@@ -43,13 +77,26 @@ def send_message_max(chat_id, text):
         print("BODY:", r.text)
         print("=================================")
 
+
+
         try:
+
             return r.json()
+
+
         except Exception:
+
             return {}
 
+
+
     except Exception as e:
-        print("MAX ERROR:", e)
+
+        print(
+            "MAX ERROR:",
+            e
+        )
+
         return {}
 
 
