@@ -30,7 +30,8 @@ from max_service import send_message_max
 from states import (
     get_state,
     set_state,
-    clear_state
+    clear_state,
+    WAIT_MANAGER_MESSAGE
 )
 
 
