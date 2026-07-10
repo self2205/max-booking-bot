@@ -50,7 +50,6 @@ def send_message_max(
         ]
 
 
-
     try:
 
         r = requests.post(
@@ -92,13 +91,14 @@ def send_message_max(
 
     except Exception as e:
 
+
         print(
             "MAX ERROR:",
             e
         )
 
-        return {}
 
+        return {}
 
 # =========================
 # ПОЛУЧИТЬ СООБЩЕНИЕ
