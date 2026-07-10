@@ -14,6 +14,10 @@ from booking_service import create_booking
 
 from max_service import send_message_max
 
+from config import ADMIN_IDS
+
+from telegram_admin_listener import send_telegram
+
 
 router = APIRouter()
 
@@ -50,7 +54,7 @@ async def max_webhook(request: Request):
 
 
     # ==========================
-    # ЗАПУСК ПО КНОПКЕ
+    # ЗАПУСК ПО КНОПКЕ БРОНИ
     # ==========================
 
     if update_type == "bot_started":
@@ -74,12 +78,6 @@ async def max_webhook(request: Request):
         )
 
 
-        print(
-            "RAW PAYLOAD:",
-            payload
-        )
-
-
 
         product_data = get_product(
             payload
@@ -87,48 +85,22 @@ async def max_webhook(request: Request):
 
 
 
-        product = None
-        image_url = None
-        channel_message_id = None
-
-
-
         if product_data:
 
 
-            product = product_data["product"]
+            product = product_data.get(
+                "product"
+            )
+
 
             image_url = product_data.get(
                 "image_url"
             )
 
+
             channel_message_id = product_data.get(
                 "channel_message_id"
             )
-
-
-
-        print(
-            "PRODUCT:",
-            product
-        )
-
-
-        print(
-            "IMAGE:",
-            image_url
-        )
-
-
-        print(
-            "CHANNEL MESSAGE ID:",
-            channel_message_id
-        )
-
-
-
-
-        if product:
 
 
 
@@ -146,7 +118,6 @@ async def max_webhook(request: Request):
 
                     "channel_message_id": channel_message_id,
 
-                    # сохраняем чат клиента MAX
                     "client_chat_id": chat_id
 
                 }
@@ -171,9 +142,7 @@ async def max_webhook(request: Request):
             )
 
 
-
         else:
-
 
 
             set_state(
@@ -185,7 +154,6 @@ async def max_webhook(request: Request):
                 {}
 
             )
-
 
 
             send_message_max(
@@ -207,7 +175,7 @@ async def max_webhook(request: Request):
 
 
     # ==========================
-    # СООБЩЕНИЯ
+    # ОБРАБОТКА СООБЩЕНИЙ
     # ==========================
 
     if update_type != "message_created":
@@ -259,9 +227,74 @@ async def max_webhook(request: Request):
 
 
 
+    # ==========================
+    # ОТВЕТ МЕНЕДЖЕРУ
+    # ==========================
+
+    if state and state["state"] == "WAIT_MANAGER_MESSAGE":
+
+
+        booking_id = state["data"].get(
+            "booking_id"
+        )
+
+
+        product = state["data"].get(
+            "product",
+            "Не указан"
+        )
+
+
+
+        for admin in ADMIN_IDS:
+
+
+            send_telegram(
+
+                admin,
+
+                f"""
+💬 Сообщение от клиента
+
+📦 Товар:
+{product}
+
+🆔 Бронь:
+#{booking_id}
+
+💬 Сообщение:
+{text}
+"""
+
+            )
+
+
+
+        send_message_max(
+
+            chat_id,
+
+            "✅ Сообщение отправлено менеджеру.\n\n"
+            "Мы скоро ответим вам."
+
+        )
+
+
+        clear_state(
+            user_id
+        )
+
+
+        return {
+            "ok": True
+        }
+
+
+
+
 
     # ==========================
-    # ИМЯ
+    # ВВОД ИМЕНИ
     # ==========================
 
     if state and state["state"] == "WAIT_NAME":
@@ -302,7 +335,7 @@ async def max_webhook(request: Request):
 
 
     # ==========================
-    # ТЕЛЕФОН
+    # ВВОД ТЕЛЕФОНА
     # ==========================
 
     if state and state["state"] == "WAIT_PHONE":
@@ -336,7 +369,6 @@ async def max_webhook(request: Request):
             ),
 
 
-            # передаем MAX chat клиента
             client_chat_id=state["data"].get(
                 "client_chat_id"
             )
@@ -352,21 +384,47 @@ async def max_webhook(request: Request):
 
 
 
+        # сохраняем возможность ответа менеджеру
+
+        set_state(
+
+            user_id,
+
+            "WAIT_MANAGER_MESSAGE",
+
+            {
+
+                "booking_id": booking_id,
+
+                "product": state["data"]["product"]
+
+            }
+
+        )
+
+
+
         send_message_max(
 
             chat_id,
 
+
             f"""
 ✅ Заявка на бронирование создана!
-Мы свяжемся с вами в ближайшее время!
-Для отмены бронирования пишите по номеру: +7 (926) 957-13-67
 
-Номер:
+📦 Товар:
+{state["data"]["product"]}
+
+🆔 Номер:
 #{booking_id}
-"""
+
+
+Мы свяжемся с вами в ближайшее время.
+
+Если нужно уточнить детали — нажмите кнопку ниже.
+""",
 
         )
-
 
 
         return {
@@ -374,6 +432,20 @@ async def max_webhook(request: Request):
         }
 
 
+
+
+
+    # ==========================
+    # НЕТ АКТИВНОЙ ЗАЯВКИ
+    # ==========================
+
+    send_message_max(
+
+        chat_id,
+
+        "ℹ️ Для связи с менеджером сначала оформите бронирование товара."
+
+    )
 
 
     return {
