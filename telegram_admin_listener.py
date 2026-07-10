@@ -115,8 +115,27 @@ def get_updates():
 
 def send_telegram(
         chat_id,
-        text
+        text,
+        buttons=None
 ):
+
+    payload = {
+
+        "chat_id": chat_id,
+
+        "text": text
+
+    }
+
+
+    if buttons:
+
+        payload["reply_markup"] = {
+
+            "inline_keyboard": buttons
+
+        }
+
 
     try:
 
@@ -124,13 +143,7 @@ def send_telegram(
 
             f"{API_URL}/sendMessage",
 
-            json={
-
-                "chat_id": chat_id,
-
-                "text": text
-
-            },
+            json=payload,
 
             timeout=15
 
@@ -145,9 +158,6 @@ def send_telegram(
             e,
             flush=True
         )
-
-
-
 
 
 
