@@ -33,6 +33,8 @@ router = APIRouter()
 @router.post("/webhook")
 async def max_webhook(request: Request):
 
+    print("🔥 WEBHOOK HIT", flush=True)
+
     data = await request.json()
 
 
