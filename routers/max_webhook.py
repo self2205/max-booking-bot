@@ -34,7 +34,6 @@ async def max_webhook(request: Request):
 
     print("🔥 WEBHOOK HIT", flush=True)
 
-
     data = await request.json()
 
 
@@ -158,6 +157,8 @@ async def max_webhook(request: Request):
             "ok": True
         }
 
+
+
     # ==========================
     # CALLBACK КНОПКИ
     # ==========================
@@ -193,11 +194,26 @@ async def max_webhook(request: Request):
 
 
         print(
+            "CALLBACK DATA:",
+            callback,
+            flush=True
+        )
+
+
+        print(
             "CALLBACK PAYLOAD:",
             payload,
             flush=True
         )
 
+
+        print(
+            "CALLBACK USER:",
+            user_id,
+            "CHAT:",
+            chat_id,
+            flush=True
+        )
 
         # ==========================
         # НАПИСАТЬ МЕНЕДЖЕРУ
@@ -214,48 +230,69 @@ async def max_webhook(request: Request):
             )
 
 
+            print(
+                "REPLY CLIENT BOOKING:",
+                booking_id,
+                flush=True
+            )
+
+
             booking = get_booking(
                 int(booking_id)
             )
 
 
-            if booking:
-
-
-                set_state(
-
-                    user_id,
-
-                    "WAIT_CLIENT_MESSAGE",
-
-                    {
-
-                        "booking_id": booking_id,
-
-                        "product": booking.get(
-                            "product",
-                            "Не указан"
-                        )
-
-                    }
-
-                )
+            if not booking:
 
 
                 send_message_max(
 
                     chat_id,
 
-                    "💬 Напишите сообщение менеджеру.\n\n"
-                    "Ваше сообщение получит менеджер."
+                    "❌ Заявка не найдена"
 
                 )
+
+
+                return {
+                    "ok": True
+                }
+
+
+
+            set_state(
+
+                user_id,
+
+                "WAIT_CLIENT_MESSAGE",
+
+                {
+
+                    "booking_id": booking_id,
+
+                    "product": booking.get(
+                        "product",
+                        "Не указан"
+                    )
+
+                }
+
+            )
+
+
+            send_message_max(
+
+                chat_id,
+
+                "💬 Напишите сообщение менеджеру.\n\n"
+                "Ваше сообщение будет отправлено."
+
+            )
 
 
             return {
                 "ok": True
             }
-
 
 
         return {
@@ -265,7 +302,7 @@ async def max_webhook(request: Request):
 
 
     # ==========================
-    # ОБРАБОТКА СООБЩЕНИЙ
+    # ОБЫЧНЫЕ СООБЩЕНИЯ
     # ==========================
 
     if update_type != "message_created":
@@ -275,12 +312,10 @@ async def max_webhook(request: Request):
         }
 
 
-
     message = data.get(
         "message",
         {}
     )
-
 
 
     chat_id = message.get(
@@ -291,14 +326,12 @@ async def max_webhook(request: Request):
     )
 
 
-
     user_id = message.get(
         "sender",
         {}
     ).get(
         "user_id"
     )
-
 
 
     text = message.get(
@@ -322,6 +355,11 @@ async def max_webhook(request: Request):
     )
 
 
+    print(
+        "STATE:",
+        state,
+        flush=True
+    )
 
     # ==========================
     # СООБЩЕНИЕ МЕНЕДЖЕРУ
@@ -381,6 +419,8 @@ async def max_webhook(request: Request):
         return {
             "ok": True
         }
+
+
 
     # ==========================
     # ВВОД ИМЕНИ
@@ -453,15 +493,12 @@ async def max_webhook(request: Request):
         )
 
 
-
         product = state["data"]["product"]
-
 
 
         clear_state(
             user_id
         )
-
 
 
         send_message_max(
@@ -480,7 +517,6 @@ async def max_webhook(request: Request):
 Мы свяжемся с вами в ближайшее время.
 """,
 
-
             buttons=[
 
                 [
@@ -488,8 +524,7 @@ async def max_webhook(request: Request):
                     {
                         "type": "callback",
                         "text": "💬 Написать менеджеру",
-                        "payload": f"reply_client_{booking_id}",
-                        "callback_data": f"reply_client_{booking_id}"
+                        "payload": f"reply_client_{booking_id}"
                     }
 
                 ]
@@ -498,10 +533,12 @@ async def max_webhook(request: Request):
 
         )
 
-    
+
         return {
             "ok": True
         }
+
+
 
     # ==========================
     # НЕТ СОСТОЯНИЯ
