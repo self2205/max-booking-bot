@@ -26,6 +26,7 @@ from telegram_admin_listener import send_telegram
 router = APIRouter()
 
 
+
 # ==========================
 # MAX WEBHOOK
 # ==========================
@@ -35,7 +36,9 @@ async def max_webhook(request: Request):
 
     print("🔥 WEBHOOK HIT", flush=True)
 
+
     data = await request.json()
+
 
     print(
         json.dumps(
@@ -45,23 +48,19 @@ async def max_webhook(request: Request):
         ),
         flush=True
     )
-    
-    print("\n========== MAX WEBHOOK ==========")
-
-    print(
-        json.dumps(
-            data,
-            ensure_ascii=False,
-            indent=2
-        )
-    )
-
-    print("=================================\n")
 
 
     update_type = data.get(
         "update_type"
     )
+
+
+    print(
+        "UPDATE TYPE:",
+        update_type,
+        flush=True
+    )
+
 
 
     # ==========================
@@ -82,231 +81,33 @@ async def max_webhook(request: Request):
 
 
         payload = (
+
             data.get("payload")
+
             or data.get("start")
+
             or data.get("parameter")
+
             or ""
+
         )
 
 
         print(
             "BUTTON PAYLOAD:",
-            payload
+            payload,
+            flush=True
         )
 
 
-        # ==========================
-        # НАПИСАТЬ МЕНЕДЖЕРУ
-        # ==========================
-
-        if payload.startswith(
-            "reply_client_"
-        ):
-
-            print(
-                "🔥 REPLY BUTTON CLICK:",
-                payload,
-                flush=True
-            )
-
-
-            booking_id = payload.replace(
-                "reply_client_",
-                ""
-            )
-
-
-            print(
-                "🆔 BOOKING ID:",
-                booking_id,
-                flush=True
-            )
-
-
-            booking = get_booking(
-                int(booking_id)
-            )
-
-
-            print(
-                "📦 BOOKING DATA:",
-                booking,
-                flush=True
-            )
-
-
-            if not booking:
-
-
-                send_message_max(
-
-                    chat_id,
-
-                    "❌ Бронь не найдена"
-
-                )
-
-
-                return {
-
-                    "ok": True
-
-                }
-
-
-
-            set_state(
-
-                user_id,
-
-                "WAIT_MANAGER_MESSAGE",
-
-                {
-
-                    "booking_id": booking_id,
-
-                    "product": booking.get(
-
-                        "product",
-
-                        "Не указан"
-
-                    )
-
-                }
-
-            )
-
-
-
-            print(
-
-                "✅ STATE SET:",
-
-                user_id,
-
-                flush=True
-
-            )
-
-
-
-            send_message_max(
-
-                chat_id,
-
-                "💬 Напишите сообщение менеджеру.\n\n"
-                "Мы ответим вам в ближайшее время."
-
-            )
-
-
-            return {
-
-                "ok": True
-
-            }
-
-        # ==========================
-        # ОТМЕНИТЬ БРОНЬ
-        # ==========================
-
-        if payload.startswith(
-            "cancel_booking_"
-        ):
-
-
-            booking_id = int(
-
-                payload.replace(
-
-                    "cancel_booking_",
-
-                    ""
-
-                )
-
-            )
-
-
-            booking = get_booking(
-
-                booking_id
-
-            )
-
-
-            if booking:
-
-
-                change_status(
-
-                    booking_id
-
-                )
-
-
-                product = booking.get(
-
-                    "product",
-
-                    "Не указан"
-
-                )
-
-
-                for admin in ADMIN_IDS:
-
-
-                    send_telegram(
-
-                        admin,
-
-                        f"""
-❌ Клиент отменил бронирование
-
-📦 Товар:
-{product}
-
-🆔 Бронь:
-#{booking_id}
-"""
-
-                    )
-
-
-
-            clear_state(
-
-                user_id
-
-            )
-
-
-
-            send_message_max(
-
-                chat_id,
-
-                "✅ Ваше бронирование отменено."
-
-            )
-
-
-            return {
-
-                "ok": True
-
-            }
 
         # ==========================
         # НАЧАЛО БРОНИРОВАНИЯ
         # ==========================
 
+
         product_data = get_product(
-
             payload
-
         )
 
 
@@ -314,23 +115,17 @@ async def max_webhook(request: Request):
 
 
             product = product_data.get(
-
                 "product"
-
             )
 
 
             image_url = product_data.get(
-
                 "image_url"
-
             )
 
 
             channel_message_id = product_data.get(
-
                 "channel_message_id"
-
             )
 
 
@@ -378,10 +173,227 @@ async def max_webhook(request: Request):
 
                 chat_id,
 
-                "👋 Привет!\n\n"
-                "Что хотите забронировать?"
+                "👋 Привет!\n\nЧто хотите забронировать?"
 
             )
+
+
+        return {
+
+            "ok": True
+
+        }
+
+
+
+    # ==========================
+    # CALLBACK КНОПКИ MAX
+    # ==========================
+
+    if update_type == "message_callback":
+
+
+        print(
+            "🔥 CALLBACK RECEIVED",
+            flush=True
+        )
+
+
+        callback = data.get(
+            "callback",
+            {}
+        )
+
+
+        payload = callback.get(
+            "payload"
+        )
+
+
+        user_id = callback.get(
+            "user_id"
+        )
+
+
+        chat_id = callback.get(
+            "chat_id"
+        )
+
+
+        print(
+            "PAYLOAD:",
+            payload,
+            flush=True
+        )
+
+
+        print(
+            "USER:",
+            user_id,
+            "CHAT:",
+            chat_id,
+            flush=True
+        )
+
+        # ==========================
+        # КНОПКА "НАПИСАТЬ МЕНЕДЖЕРУ"
+        # ==========================
+
+        if payload and payload.startswith(
+            "reply_client_"
+        ):
+
+
+            booking_id = payload.replace(
+                "reply_client_",
+                ""
+            )
+
+
+            print(
+                "REPLY BOOKING:",
+                booking_id,
+                flush=True
+            )
+
+
+            booking = get_booking(
+                int(booking_id)
+            )
+
+
+            if not booking:
+
+
+                send_message_max(
+
+                    chat_id,
+
+                    "❌ Бронь не найдена."
+
+                )
+
+
+                return {
+
+                    "ok": True
+
+                }
+
+
+
+            set_state(
+
+                user_id,
+
+                "WAIT_MANAGER_MESSAGE",
+
+                {
+
+                    "booking_id": booking_id,
+
+                    "product": booking.get(
+
+                        "product",
+
+                        "Не указан"
+
+                    )
+
+                }
+
+            )
+
+
+            send_message_max(
+
+                chat_id,
+
+                "💬 Напишите сообщение менеджеру.\n\n"
+                "Мы ответим вам в ближайшее время."
+
+            )
+
+
+            return {
+
+                "ok": True
+
+            }
+
+
+
+        # ==========================
+        # КНОПКА "ОТМЕНИТЬ БРОНЬ"
+        # ==========================
+
+        if payload and payload.startswith(
+            "cancel_booking_"
+        ):
+
+
+            booking_id = payload.replace(
+                "cancel_booking_",
+                ""
+            )
+
+
+            booking = get_booking(
+                int(booking_id)
+            )
+
+
+            if booking:
+
+
+                change_status(
+                    int(booking_id)
+                )
+
+
+                for admin in ADMIN_IDS:
+
+
+                    send_telegram(
+
+                        admin,
+
+
+                        f"""
+❌ Клиент отменил бронирование
+
+📦 Товар:
+{booking.get("product","Не указан")}
+
+🆔 Бронь:
+#{booking_id}
+"""
+
+                    )
+
+
+
+            clear_state(
+                user_id
+            )
+
+
+
+            send_message_max(
+
+                chat_id,
+
+                "✅ Ваше бронирование отменено."
+
+            )
+
+
+            return {
+
+                "ok": True
+
+            }
+
 
 
         return {
@@ -409,63 +421,40 @@ async def max_webhook(request: Request):
 
 
     message = data.get(
-
         "message",
-
         {}
-
     )
 
 
 
     chat_id = message.get(
-
         "recipient",
-
         {}
-
     ).get(
-
         "chat_id"
-
     )
-
 
 
     user_id = message.get(
-
         "sender",
-
         {}
-
     ).get(
-
         "user_id"
-
     )
 
 
-
     text = message.get(
-
         "body",
-
         {}
-
     ).get(
-
         "text",
-
         ""
-
     )
 
 
 
     state = get_state(
-
         user_id
-
     )
 
 
@@ -479,18 +468,13 @@ async def max_webhook(request: Request):
 
 
         booking_id = state["data"].get(
-
             "booking_id"
-
         )
 
 
         product = state["data"].get(
-
             "product",
-
             "Не указан"
-
         )
 
 
@@ -546,7 +530,6 @@ async def max_webhook(request: Request):
         )
 
 
-
         return {
 
             "ok": True
@@ -595,6 +578,7 @@ async def max_webhook(request: Request):
 
 
 
+
     # ==========================
     # ВВОД ТЕЛЕФОНА
     # ==========================
@@ -616,21 +600,15 @@ async def max_webhook(request: Request):
             phone=state["data"]["phone"],
 
             image_url=state["data"].get(
-
                 "image_url"
-
             ),
 
             channel_message_id=state["data"].get(
-
                 "channel_message_id"
-
             ),
 
             client_chat_id=state["data"].get(
-
                 "client_chat_id"
-
             )
 
         )
@@ -685,6 +663,7 @@ async def max_webhook(request: Request):
 
                 ],
 
+
                 [
 
                     {
@@ -704,12 +683,12 @@ async def max_webhook(request: Request):
         )
 
 
-
         return {
 
             "ok": True
 
         }
+
 
 
 
@@ -725,7 +704,6 @@ async def max_webhook(request: Request):
         "ℹ️ Для связи с менеджером сначала оформите бронирование товара."
 
     )
-
 
 
     return {
