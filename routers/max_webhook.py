@@ -488,7 +488,7 @@ async def max_webhook(request: Request):
                     {
                         "type": "callback",
                         "text": "💬 Написать менеджеру",
-                        "callback_data": f"reply_client_{booking_id}"
+                        "payload": f"reply_client_{booking_id}"
                     }
 
                 ]
