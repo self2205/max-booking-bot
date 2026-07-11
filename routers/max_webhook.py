@@ -497,6 +497,10 @@ async def max_webhook(request: Request):
 
         )
 
+    
+        return {
+            "ok": True
+        }
 
     # ==========================
     # НЕТ СОСТОЯНИЯ
