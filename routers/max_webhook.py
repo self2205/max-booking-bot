@@ -34,6 +34,7 @@ async def max_webhook(request: Request):
 
     print("🔥 WEBHOOK HIT", flush=True)
 
+
     data = await request.json()
 
 
@@ -60,7 +61,7 @@ async def max_webhook(request: Request):
 
 
     # ==========================
-    # START / КНОПКА ИЗ КАНАЛА
+    # ЗАПУСК ПО КНОПКЕ ИЗ КАНАЛА
     # ==========================
 
     if update_type == "bot_started":
@@ -157,159 +158,224 @@ async def max_webhook(request: Request):
             "ok": True
         }
 
-import json
-
-from fastapi import APIRouter, Request
-
-from states import (
-    get_state,
-    set_state,
-    clear_state
-)
-
-from database import (
-    get_product,
-    get_booking
-)
-
-from booking_service import create_booking
-
-from max_service import send_message_max
-
-from config import ADMIN_IDS
-
-from telegram_admin_listener import send_telegram
-
-
-router = APIRouter()
-
-
-# ==========================
-# MAX WEBHOOK
-# ==========================
-
-@router.post("/webhook")
-async def max_webhook(request: Request):
-
-    print("🔥 WEBHOOK HIT", flush=True)
-
-    data = await request.json()
-
-
-    print(
-        json.dumps(
-            data,
-            ensure_ascii=False,
-            indent=2
-        ),
-        flush=True
-    )
-
-
-    update_type = data.get(
-        "update_type"
-    )
-
-
-    print(
-        "UPDATE TYPE:",
-        update_type,
-        flush=True
-    )
-
-
     # ==========================
-    # START / КНОПКА ИЗ КАНАЛА
+    # CALLBACK КНОПКИ
     # ==========================
 
-    if update_type == "bot_started":
+    if update_type == "message_callback":
 
 
-        user_id = data.get(
+        print(
+            "🔥 CALLBACK RECEIVED",
+            flush=True
+        )
+
+
+        callback = data.get(
+            "callback",
+            {}
+        )
+
+
+        payload = callback.get(
+            "payload"
+        )
+
+
+        user_id = callback.get(
             "user_id"
         )
 
 
-        chat_id = data.get(
+        chat_id = callback.get(
             "chat_id"
         )
 
 
-        payload = (
-            data.get("payload")
-            or data.get("start")
-            or data.get("parameter")
-            or ""
-        )
-
-
         print(
-            "PAYLOAD:",
+            "CALLBACK PAYLOAD:",
             payload,
             flush=True
         )
 
 
-        product_data = get_product(
-            payload
-        )
+        # ==========================
+        # НАПИСАТЬ МЕНЕДЖЕРУ
+        # ==========================
+
+        if payload and payload.startswith(
+            "reply_client_"
+        ):
 
 
-        if product_data:
-
-
-            set_state(
-
-                user_id,
-
-                "WAIT_NAME",
-
-                {
-
-                    "product": product_data.get(
-                        "product"
-                    ),
-
-                    "image_url": product_data.get(
-                        "image_url"
-                    ),
-
-                    "channel_message_id": product_data.get(
-                        "channel_message_id"
-                    ),
-
-                    "client_chat_id": chat_id
-
-                }
-
+            booking_id = payload.replace(
+                "reply_client_",
+                ""
             )
 
 
-            send_message_max(
+            booking = get_booking(
+                int(booking_id)
+            )
 
-                chat_id,
+
+            if booking:
+
+
+                set_state(
+
+                    user_id,
+
+                    "WAIT_CLIENT_MESSAGE",
+
+                    {
+
+                        "booking_id": booking_id,
+
+                        "product": booking.get(
+                            "product",
+                            "Не указан"
+                        )
+
+                    }
+
+                )
+
+
+                send_message_max(
+
+                    chat_id,
+
+                    "💬 Напишите сообщение менеджеру.\n\n"
+                    "Ваше сообщение получит менеджер."
+
+                )
+
+
+            return {
+                "ok": True
+            }
+
+
+
+        return {
+            "ok": True
+        }
+
+
+
+    # ==========================
+    # ОБРАБОТКА СООБЩЕНИЙ
+    # ==========================
+
+    if update_type != "message_created":
+
+        return {
+            "ok": True
+        }
+
+
+
+    message = data.get(
+        "message",
+        {}
+    )
+
+
+
+    chat_id = message.get(
+        "recipient",
+        {}
+    ).get(
+        "chat_id"
+    )
+
+
+
+    user_id = message.get(
+        "sender",
+        {}
+    ).get(
+        "user_id"
+    )
+
+
+
+    text = message.get(
+        "body",
+        {}
+    ).get(
+        "text",
+        ""
+    )
+
+
+    print(
+        "TEXT:",
+        text,
+        flush=True
+    )
+
+
+    state = get_state(
+        user_id
+    )
+
+
+
+    # ==========================
+    # СООБЩЕНИЕ МЕНЕДЖЕРУ
+    # ==========================
+
+    if state and state["state"] == "WAIT_CLIENT_MESSAGE":
+
+
+        booking_id = state["data"].get(
+            "booking_id"
+        )
+
+
+        product = state["data"].get(
+            "product",
+            "Не указан"
+        )
+
+
+        for admin in ADMIN_IDS:
+
+
+            send_telegram(
+
+                admin,
 
                 f"""
-🟢 Бронирование
+💬 Сообщение от клиента
 
-📦 {product_data.get("product")}
+📦 Товар:
+{product}
 
-✍️ Введите ваше имя
+🆔 Бронь:
+#{booking_id}
+
+✉️ Сообщение:
+{text}
 """
 
             )
 
 
-        else:
+        clear_state(
+            user_id
+        )
 
 
-            send_message_max(
+        send_message_max(
 
-                chat_id,
+            chat_id,
 
-                "👋 Привет!\n\nЧто хотите забронировать?"
+            "✅ Сообщение отправлено менеджеру."
 
-            )
+        )
 
 
         return {
@@ -349,6 +415,7 @@ async def max_webhook(request: Request):
         return {
             "ok": True
         }
+
 
 
 
@@ -392,9 +459,7 @@ async def max_webhook(request: Request):
 
 
         clear_state(
-
             user_id
-
         )
 
 
@@ -434,9 +499,7 @@ async def max_webhook(request: Request):
 
 
         return {
-
             "ok": True
-
         }
 
 
@@ -446,7 +509,5 @@ async def max_webhook(request: Request):
     # ==========================
 
     return {
-
         "ok": True
-
     }
