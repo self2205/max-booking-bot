@@ -36,6 +36,7 @@ async def max_webhook(request: Request):
 
     data = await request.json()
 
+
     print(
         json.dumps(
             data,
@@ -59,7 +60,7 @@ async def max_webhook(request: Request):
 
 
     # ==========================
-    # КНОПКИ / START
+    # START / КНОПКА ИЗ КАНАЛА
     # ==========================
 
     if update_type == "bot_started":
@@ -89,8 +90,6 @@ async def max_webhook(request: Request):
             flush=True
         )
 
-
-        # запуск бронирования товара
 
         product_data = get_product(
             payload
@@ -152,125 +151,6 @@ async def max_webhook(request: Request):
                 "👋 Привет!\n\nЧто хотите забронировать?"
 
             )
-
-
-        return {
-            "ok": True
-        }
-
-
-
-    # ==========================
-    # CALLBACK КНОПКА
-    # ==========================
-
-    if update_type == "message_callback":
-
-
-        print(
-            "🔥 CALLBACK",
-            flush=True
-        )
-
-
-        callback = data.get(
-            "callback",
-            {}
-        )
-
-
-        payload = callback.get(
-            "payload"
-        )
-
-
-        user_id = callback.get(
-            "user_id"
-        )
-
-
-        chat_id = callback.get(
-            "chat_id"
-        )
-
-
-        print(
-            "CALLBACK PAYLOAD:",
-            payload,
-            flush=True
-        )
-
-
-        # ==========================
-        # НАПИСАТЬ МЕНЕДЖЕРУ
-        # ==========================
-
-        if payload and payload.startswith(
-            "reply_client_"
-        ):
-
-
-            booking_id = payload.replace(
-                "reply_client_",
-                ""
-            )
-
-
-            booking = get_booking(
-                int(booking_id)
-            )
-
-
-            if not booking:
-
-
-                send_message_max(
-
-                    chat_id,
-
-                    "❌ Заявка не найдена"
-
-                )
-
-
-                return {
-                    "ok": True
-                }
-
-
-            set_state(
-
-                user_id,
-
-                "WAIT_CLIENT_MESSAGE",
-
-                {
-
-                    "booking_id": booking_id,
-
-                    "product": booking.get(
-                        "product",
-                        "Не указан"
-                    )
-
-                }
-
-            )
-
-
-            send_message_max(
-
-                chat_id,
-
-                "💬 Напишите сообщение менеджеру.\n\n"
-                "Ваше сообщение будет отправлено менеджеру."
-
-            )
-
-
-            return {
-                "ok": True
-            }
 
 
         return {
@@ -315,6 +195,7 @@ async def max_webhook(request: Request):
 
     data = await request.json()
 
+
     print(
         json.dumps(
             data,
@@ -338,7 +219,7 @@ async def max_webhook(request: Request):
 
 
     # ==========================
-    # КНОПКИ / START
+    # START / КНОПКА ИЗ КАНАЛА
     # ==========================
 
     if update_type == "bot_started":
@@ -368,8 +249,6 @@ async def max_webhook(request: Request):
             flush=True
         )
 
-
-        # запуск бронирования товара
 
         product_data = get_product(
             payload
@@ -437,137 +316,134 @@ async def max_webhook(request: Request):
             "ok": True
         }
 
-
-
     # ==========================
-    # CALLBACK КНОПКА
+    # ВВОД ИМЕНИ
     # ==========================
 
-    if update_type == "message_callback":
+    if state and state["state"] == "WAIT_NAME":
 
 
-        print(
-            "🔥 CALLBACK",
-            flush=True
+        state["data"]["name"] = text
+
+
+        set_state(
+
+            user_id,
+
+            "WAIT_PHONE",
+
+            state["data"]
+
         )
 
 
-        callback = data.get(
-            "callback",
-            {}
+        send_message_max(
+
+            chat_id,
+
+            "📞 Введите ваш телефон"
+
         )
-
-
-        payload = callback.get(
-            "payload"
-        )
-
-
-        user_id = callback.get(
-            "user_id"
-        )
-
-
-        chat_id = callback.get(
-            "chat_id"
-        )
-
-
-        print(
-            "CALLBACK PAYLOAD:",
-            payload,
-            flush=True
-        )
-
-
-        # ==========================
-        # НАПИСАТЬ МЕНЕДЖЕРУ
-        # ==========================
-
-        if payload and payload.startswith(
-            "reply_client_"
-        ):
-
-
-            booking_id = payload.replace(
-                "reply_client_",
-                ""
-            )
-
-
-            booking = get_booking(
-                int(booking_id)
-            )
-
-
-            if not booking:
-
-
-                send_message_max(
-
-                    chat_id,
-
-                    "❌ Заявка не найдена"
-
-                )
-
-
-                return {
-                    "ok": True
-                }
-
-
-            set_state(
-
-                user_id,
-
-                "WAIT_CLIENT_MESSAGE",
-
-                {
-
-                    "booking_id": booking_id,
-
-                    "product": booking.get(
-                        "product",
-                        "Не указан"
-                    )
-
-                }
-
-            )
-
-
-            send_message_max(
-
-                chat_id,
-
-                "💬 Напишите сообщение менеджеру.\n\n"
-                "Ваше сообщение будет отправлено менеджеру."
-
-            )
-
-
-            return {
-                "ok": True
-            }
 
 
         return {
             "ok": True
         }
 
+
+
     # ==========================
-    # НЕТ АКТИВНОГО СОСТОЯНИЯ
+    # ВВОД ТЕЛЕФОНА
     # ==========================
 
-    send_message_max(
+    if state and state["state"] == "WAIT_PHONE":
 
-        chat_id,
 
-        "ℹ️ Для связи с менеджером сначала оформите бронирование товара."
+        state["data"]["phone"] = text
 
-    )
 
+
+        booking_id = create_booking(
+
+            product=state["data"]["product"],
+
+            name=state["data"]["name"],
+
+            phone=state["data"]["phone"],
+
+            image_url=state["data"].get(
+                "image_url"
+            ),
+
+            channel_message_id=state["data"].get(
+                "channel_message_id"
+            ),
+
+            client_chat_id=state["data"].get(
+                "client_chat_id"
+            )
+
+        )
+
+
+
+        product = state["data"]["product"]
+
+
+
+        clear_state(
+
+            user_id
+
+        )
+
+
+
+        send_message_max(
+
+            chat_id,
+
+            f"""
+✅ Заявка создана!
+
+📦 Товар:
+{product}
+
+🆔 Номер:
+#{booking_id}
+
+Мы свяжемся с вами в ближайшее время.
+""",
+
+
+            buttons=[
+
+                [
+
+                    {
+                        "type": "callback",
+                        "text": "💬 Написать менеджеру",
+                        "payload": f"reply_client_{booking_id}"
+                    }
+
+                ]
+
+            ]
+
+        )
+
+
+        return {
+
+            "ok": True
+
+        }
+
+
+
+    # ==========================
+    # НЕТ СОСТОЯНИЯ
+    # ==========================
 
     return {
 
