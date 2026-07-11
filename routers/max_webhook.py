@@ -652,8 +652,9 @@ async def max_webhook(request: Request):
                 [
 
                     {
+                        "type": "callback",
                         "text": "💬 Написать менеджеру",
-                        "callback_data": f"reply_client_{booking_id}"
+                        "payload": f"reply_client_{booking_id}"
                     }
 
                 ],
@@ -661,19 +662,9 @@ async def max_webhook(request: Request):
                 [
 
                     {
-                        "text": "❌ Отменить бронирование",
-                        "callback_data": f"cancel_booking_{booking_id}"
-                    }
-
-                ]
-
-            ]
                         "type": "callback",
-
                         "text": "❌ Отменить бронирование",
-
                         "payload": f"cancel_booking_{booking_id}"
-
                     }
 
                 ]
@@ -681,15 +672,6 @@ async def max_webhook(request: Request):
             ]
 
         )
-
-
-        return {
-
-            "ok": True
-
-        }
-
-
 
 
     # ==========================
