@@ -1,71 +1,356 @@
-if payload.startswith("reply_client_"):
+import json
+
+from fastapi import APIRouter, Request
+
+from states import (
+    get_state,
+    set_state,
+    clear_state
+)
+
+from database import (
+    get_product,
+    get_booking,
+    change_status
+)
+
+from booking_service import create_booking
+
+from max_service import send_message_max
+
+from config import ADMIN_IDS
+
+from telegram_admin_listener import send_telegram
 
 
-    booking_id = payload.replace(
-        "reply_client_",
-        ""
+router = APIRouter()
+
+
+# ==========================
+# MAX WEBHOOK
+# ==========================
+
+@router.post("/webhook")
+async def max_webhook(request: Request):
+
+    data = await request.json()
+
+
+    print("\n========== MAX WEBHOOK ==========")
+
+    print(
+        json.dumps(
+            data,
+            ensure_ascii=False,
+            indent=2
+        )
+    )
+
+    print("=================================\n")
+
+
+    update_type = data.get(
+        "update_type"
     )
 
 
-    booking = get_booking(
-        int(booking_id)
-    )
+    # ==========================
+    # КНОПКИ / START
+    # ==========================
+
+    if update_type == "bot_started":
 
 
-    if not booking:
+        user_id = data.get(
+            "user_id"
+        )
 
 
-        send_message_max(
+        chat_id = data.get(
+            "chat_id"
+        )
 
-            chat_id,
 
-            "❌ Бронь не найдена"
+        payload = (
+            data.get("payload")
+            or data.get("start")
+            or data.get("parameter")
+            or ""
+        )
+
+
+        print(
+            "BUTTON PAYLOAD:",
+            payload
+        )
+
+
+        # ==========================
+        # НАПИСАТЬ МЕНЕДЖЕРУ
+        # ==========================
+
+        if payload.startswith(
+            "reply_client_"
+        ):
+
+
+            booking_id = payload.replace(
+                "reply_client_",
+                ""
+            )
+
+
+            booking = get_booking(
+                int(booking_id)
+            )
+
+
+            if not booking:
+
+
+                send_message_max(
+
+                    chat_id,
+
+                    "❌ Бронь не найдена"
+
+                )
+
+
+                return {
+
+                    "ok": True
+
+                }
+
+
+
+            set_state(
+
+                user_id,
+
+                "WAIT_MANAGER_MESSAGE",
+
+                {
+
+                    "booking_id": booking_id,
+
+                    "product": booking.get(
+                        "product",
+                        "Не указан"
+                    )
+
+                }
+
+            )
+
+
+
+            send_message_max(
+
+                chat_id,
+
+                "💬 Напишите сообщение менеджеру.\n\n"
+                "Мы ответим вам в ближайшее время."
+
+            )
+
+
+            return {
+
+                "ok": True
+
+            }
+
+
+
+        # ==========================
+        # ОТМЕНИТЬ БРОНЬ
+        # ==========================
+
+        if payload.startswith(
+            "cancel_booking_"
+        ):
+
+
+            booking_id = int(
+
+                payload.replace(
+
+                    "cancel_booking_",
+
+                    ""
+
+                )
+
+            )
+
+
+            booking = get_booking(
+
+                booking_id
+
+            )
+
+
+            if booking:
+
+
+                change_status(
+
+                    booking_id
+
+                )
+
+
+                product = booking.get(
+
+                    "product",
+
+                    "Не указан"
+
+                )
+
+
+                for admin in ADMIN_IDS:
+
+
+                    send_telegram(
+
+                        admin,
+
+                        f"""
+❌ Клиент отменил бронирование
+
+📦 Товар:
+{product}
+
+🆔 Бронь:
+#{booking_id}
+"""
+
+                    )
+
+
+
+            clear_state(
+
+                user_id
+
+            )
+
+
+
+            send_message_max(
+
+                chat_id,
+
+                "✅ Ваше бронирование отменено."
+
+            )
+
+
+            return {
+
+                "ok": True
+
+            }
+
+        # ==========================
+        # НАЧАЛО БРОНИРОВАНИЯ
+        # ==========================
+
+        product_data = get_product(
+
+            payload
 
         )
 
 
-        return {
-            "ok": True
-        }
+        if product_data:
 
 
+            product = product_data.get(
 
-    set_state(
+                "product"
 
-        user_id,
-
-        "WAIT_MANAGER_MESSAGE",
-
-        {
-
-            "booking_id": booking_id,
-
-            "product": booking.get(
-                "product",
-                "Не указан"
             )
 
+
+            image_url = product_data.get(
+
+                "image_url"
+
+            )
+
+
+            channel_message_id = product_data.get(
+
+                "channel_message_id"
+
+            )
+
+
+            set_state(
+
+                user_id,
+
+                "WAIT_NAME",
+
+                {
+
+                    "product": product,
+
+                    "image_url": image_url,
+
+                    "channel_message_id": channel_message_id,
+
+                    "client_chat_id": chat_id
+
+                }
+
+            )
+
+
+            send_message_max(
+
+                chat_id,
+
+
+                f"""
+🟢 Бронирование
+
+📦 {product}
+
+✍️ Введите ваше имя
+"""
+
+            )
+
+
+        else:
+
+
+            send_message_max(
+
+                chat_id,
+
+                "👋 Привет!\n\n"
+                "Что хотите забронировать?"
+
+            )
+
+
+        return {
+
+            "ok": True
+
         }
 
-    )
 
-
-    send_message_max(
-
-        chat_id,
-
-        "💬 Напишите сообщение менеджеру.\n\n"
-        "Мы ответим вам в ближайшее время."
-
-    )
-
-
-    return {
-        "ok": True
-    }
 
     # ==========================
-    # ОБРАБАТЫВАЕМ ТОЛЬКО СООБЩЕНИЯ
+    # ТОЛЬКО СООБЩЕНИЯ
     # ==========================
 
 
@@ -80,7 +365,6 @@ if payload.startswith("reply_client_"):
 
 
 
-
     message = data.get(
 
         "message",
@@ -88,7 +372,6 @@ if payload.startswith("reply_client_"):
         {}
 
     )
-
 
 
 
@@ -106,7 +389,6 @@ if payload.startswith("reply_client_"):
 
 
 
-
     user_id = message.get(
 
         "sender",
@@ -118,7 +400,6 @@ if payload.startswith("reply_client_"):
         "user_id"
 
     )
-
 
 
 
@@ -138,13 +419,11 @@ if payload.startswith("reply_client_"):
 
 
 
-
     state = get_state(
 
         user_id
 
     )
-
 
 
 
@@ -156,13 +435,11 @@ if payload.startswith("reply_client_"):
     if state and state["state"] == "WAIT_MANAGER_MESSAGE":
 
 
-
         booking_id = state["data"].get(
 
             "booking_id"
 
         )
-
 
 
         product = state["data"].get(
@@ -178,13 +455,9 @@ if payload.startswith("reply_client_"):
         for admin in ADMIN_IDS:
 
 
-
             send_telegram(
 
-
-
                 admin,
-
 
 
                 f"""
@@ -200,37 +473,21 @@ if payload.startswith("reply_client_"):
 {text}
 """,
 
-
-
                 buttons=[
-
-
 
                     [
 
-
-
                         {
-
 
                             "text": "💬 Ответить клиенту",
 
-
                             "callback_data": f"reply_{booking_id}"
-
-
 
                         }
 
-
-
                     ]
 
-
-
                 ]
-
-
 
             )
 
@@ -238,16 +495,10 @@ if payload.startswith("reply_client_"):
 
         send_message_max(
 
-
-
             chat_id,
-
-
 
             "✅ Сообщение отправлено менеджеру.\n\n"
             "Мы скоро ответим."
-
-
 
         )
 
@@ -255,15 +506,9 @@ if payload.startswith("reply_client_"):
 
         return {
 
-
             "ok": True
 
-
         }
-
-
-
-
 
     # ==========================
     # ВВОД ИМЕНИ
@@ -273,41 +518,27 @@ if payload.startswith("reply_client_"):
     if state and state["state"] == "WAIT_NAME":
 
 
-
         state["data"]["name"] = text
-
 
 
 
         set_state(
 
-
-
             user_id,
-
 
             "WAIT_PHONE",
 
-
             state["data"]
-
-
 
         )
 
 
 
-
         send_message_max(
-
-
 
             chat_id,
 
-
             "📞 Введите ваш телефон"
-
-
 
         )
 
@@ -315,13 +546,9 @@ if payload.startswith("reply_client_"):
 
         return {
 
-
             "ok": True
 
-
         }
-
-
 
 
 
@@ -333,27 +560,17 @@ if payload.startswith("reply_client_"):
     if state and state["state"] == "WAIT_PHONE":
 
 
-
         state["data"]["phone"] = text
-
 
 
 
         booking_id = create_booking(
 
-
-
             product=state["data"]["product"],
-
-
 
             name=state["data"]["name"],
 
-
-
             phone=state["data"]["phone"],
-
-
 
             image_url=state["data"].get(
 
@@ -361,15 +578,11 @@ if payload.startswith("reply_client_"):
 
             ),
 
-
-
             channel_message_id=state["data"].get(
 
                 "channel_message_id"
 
             ),
-
-
 
             client_chat_id=state["data"].get(
 
@@ -377,20 +590,12 @@ if payload.startswith("reply_client_"):
 
             )
 
-
-
         )
-
 
 
 
         product = state["data"]["product"]
 
-
-
-
-        # НЕ ставим WAIT_MANAGER_MESSAGE здесь
-        # клиент сначала должен нажать кнопку
 
 
         clear_state(
@@ -401,13 +606,9 @@ if payload.startswith("reply_client_"):
 
 
 
-
         send_message_max(
 
-
-
             chat_id,
-
 
 
             f"""
@@ -425,64 +626,37 @@ if payload.startswith("reply_client_"):
 """,
 
 
-
             buttons=[
-
-
 
                 [
 
-
-
                     {
 
-
                         "type": "callback",
-
 
                         "text": "💬 Написать менеджеру",
 
-
                         "payload": f"reply_client_{booking_id}"
 
-
-
                     }
-
-
 
                 ],
 
-
-
                 [
-
-
 
                     {
 
-
                         "type": "callback",
-
 
                         "text": "❌ Отменить бронирование",
 
-
                         "payload": f"cancel_booking_{booking_id}"
-
-
 
                     }
 
-
-
                 ]
 
-
-
             ]
-
-
 
         )
 
@@ -490,12 +664,11 @@ if payload.startswith("reply_client_"):
 
         return {
 
-
-
             "ok": True
 
-
         }
+
+
 
     # ==========================
     # НЕТ АКТИВНОЙ БРОНИ
@@ -504,15 +677,9 @@ if payload.startswith("reply_client_"):
 
     send_message_max(
 
-
-
         chat_id,
 
-
-
         "ℹ️ Для связи с менеджером сначала оформите бронирование товара."
-
-
 
     )
 
@@ -520,9 +687,6 @@ if payload.startswith("reply_client_"):
 
     return {
 
-
-
         "ok": True
-
 
     }
