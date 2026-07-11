@@ -190,8 +190,10 @@ async def max_webhook(request: Request):
     # CALLBACK КНОПКИ MAX
     # ==========================
 
-    if update_type == "message_callback":
-
+    if update_type in [
+        "message_callback",
+        "callback",
+    ]:
 
         print(
             "🔥 CALLBACK RECEIVED",
@@ -211,11 +213,20 @@ async def max_webhook(request: Request):
 
 
         user_id = callback.get(
+            "user",
+            {}
+        ).get(
             "user_id"
         )
 
 
         chat_id = callback.get(
+            "message",
+            {}
+        ).get(
+            "recipient",
+            {}
+        ).get(
             "chat_id"
         )
 
@@ -674,22 +685,8 @@ async def max_webhook(request: Request):
         )
 
 
-    # ==========================
-    # НЕТ АКТИВНОЙ БРОНИ
-    # ==========================
+        return {
 
+            "ok": True
 
-    send_message_max(
-
-        chat_id,
-
-        "ℹ️ Для связи с менеджером сначала оформите бронирование товара."
-
-    )
-
-
-    return {
-
-        "ok": True
-
-    }
+        }
