@@ -183,13 +183,16 @@ async def max_webhook(request: Request):
         )
 
 
-        user_id = callback.get(
-            "user_id"
+        user_id = (
+            callback.get("user_id")
+            or callback.get("user", {}).get("user_id")
         )
 
 
-        chat_id = callback.get(
-            "chat_id"
+        chat_id = (
+            data.get("message", {})
+            .get("recipient", {})
+            .get("chat_id")
         )
 
 
