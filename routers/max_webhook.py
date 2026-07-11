@@ -103,6 +103,12 @@ async def max_webhook(request: Request):
             "reply_client_"
         ):
 
+            print(
+                "🔥 REPLY BUTTON CLICK:",
+                payload,
+                flush=True
+            )
+
 
             booking_id = payload.replace(
                 "reply_client_",
@@ -110,8 +116,22 @@ async def max_webhook(request: Request):
             )
 
 
+            print(
+                "🆔 BOOKING ID:",
+                booking_id,
+                flush=True
+            )
+
+
             booking = get_booking(
                 int(booking_id)
+            )
+
+
+            print(
+                "📦 BOOKING DATA:",
+                booking,
+                flush=True
             )
 
 
@@ -146,11 +166,26 @@ async def max_webhook(request: Request):
                     "booking_id": booking_id,
 
                     "product": booking.get(
+
                         "product",
+
                         "Не указан"
+
                     )
 
                 }
+
+            )
+
+
+
+            print(
+
+                "✅ STATE SET:",
+
+                user_id,
+
+                flush=True
 
             )
 
@@ -171,8 +206,6 @@ async def max_webhook(request: Request):
                 "ok": True
 
             }
-
-
 
         # ==========================
         # ОТМЕНИТЬ БРОНЬ
