@@ -37,7 +37,15 @@ async def max_webhook(request: Request):
 
     data = await request.json()
 
-
+    print(
+        json.dumps(
+            data,
+            ensure_ascii=False,
+            indent=2
+        ),
+        flush=True
+    )
+    
     print("\n========== MAX WEBHOOK ==========")
 
     print(
