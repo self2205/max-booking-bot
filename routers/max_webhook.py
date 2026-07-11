@@ -652,22 +652,22 @@ async def max_webhook(request: Request):
                 [
 
                     {
-
-                        "type": "callback",
-
                         "text": "💬 Написать менеджеру",
-
-                        "payload": f"reply_client_{booking_id}"
-
+                        "callback_data": f"reply_client_{booking_id}"
                     }
 
                 ],
 
-
                 [
 
                     {
+                        "text": "❌ Отменить бронирование",
+                        "callback_data": f"cancel_booking_{booking_id}"
+                    }
 
+                ]
+
+            ]
                         "type": "callback",
 
                         "text": "❌ Отменить бронирование",
